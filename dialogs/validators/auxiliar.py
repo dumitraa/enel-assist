@@ -3,6 +3,8 @@ from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis
 from typing import Dict, Any, List
 iface = qgis.utils.iface
 
+from .base_parser import BaseParser
+
 class Auxiliar:
     def __init__(self, id, friendly_id, denumire, observatii, POINT_X, POINT_Y, POINT_M, ignored=False):
         self.id = id
@@ -26,7 +28,7 @@ class Auxiliar:
             'ignored': self.ignored
         }
 
-class AuxiliarParser:
+class AuxiliarParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
         self.layer = layer
         
@@ -72,113 +74,7 @@ class AuxiliarParser:
             QgsMessageLog.logMessage(f"Feature {auxiliar_data.denumire} parsed successfully with data {auxiliar_data.to_dict()}", "EnelAssist", level=Qgis.Info)
             self.auxiliare_data.append(auxiliar_data)
 
-    def validate(self) -> List[Dict[str, Any]]:
-        print("~~~* Validating auxiliare *~~~")
-        self.invalid_elements = []
-
-        for aux in self.auxiliare_data:
-            aux_dict = aux.to_dict()
-            for field, rule_config in self.validation_rules.items():
-                value = aux_dict.get(field, None)
-                rule = rule_config.get('rule')
-                required = rule_config.get('required', False)
-                
-                QgsMessageLog.logMessage(f"Validating field {field} with value {value} and rule {rule}", "EnelAssist", level=Qgis.Info)
-
-                if value is None and required:
-                    self.invalid_elements.append({
-                        'layer_name': "Auxiliar",
-                        'id': aux.id,
-                        'tag': field,
-                        'friendly_name': f"{aux.denumire if aux.denumire else f"ID {aux.friendly_id}"}",
-                        'error': f"Câmpul trebuie să fie completat!",
-                        'suggestions': rule
-                    })
-                    continue
-
-                if value is not None:
-                    if rule == "str":
-                        if not isinstance(value, str):
-                            self.invalid_elements.append({
-                                'layer_name': "Auxiliar",
-                                'id': aux.id,
-                                'tag': field,
-                                'friendly_name': f"{aux.denumire if aux.denumire else f"ID {aux.friendly_id}"}",
-                                'error': f"Valoarea '{value}' nu este de tip text",
-                                'suggestions': rule
-                            })
-                            
-                            QgsMessageLog.logMessage(f"Field {field} with value {value} is not of type 'str'", "EnelAssist", level=Qgis.Warning)
-
-        return self.invalid_elements if self.invalid_elements else []
-
     def get_auxiliare_data(self):
         return self.auxiliare_data
-
-    def update_feature(self, feature_id, field, value):
-        for aux in self.auxiliare_data:
-            QgsMessageLog.logMessage(f"Comparing aux.id with feature_id - {aux.id} == {feature_id}?", "EnelAssist", level=Qgis.Info)
-            if aux.id == feature_id:
-                QgsMessageLog.logMessage(f"Found feature {feature_id} in auxiliare data. Updating field {field} with value {value}", "EnelAssist", level=Qgis.Info)
-                setattr(aux, field, value)
-                print(f"Value was changed for Feature {feature_id}: {field} - {value}")
-                break
-            else:
-                QgsMessageLog.logMessage(f"Feature {feature_id} not found in auxiliare data.", "EnelAssist", level=Qgis.Warning)
-
-    def save_to_layer(self):
-        """
-        Save the updated data back to the layer.
-        """
-        if not self.layer:
-            raise ValueError("Layer is not loaded.")
-
-        # Start an editing session on the layer
-        if not self.layer.isEditable():
-            if not self.layer.startEditing():
-                QgsMessageLog.logMessage("Failed to start editing the layer.", "EnelAssist", Qgis.Warning)
-                return
-
-        # Iterate over the auxiliar data and update the corresponding features
-        for aux in self.auxiliare_data:
-            if aux.ignored:
-                continue
-            feature = self.layer.getFeature(aux.id)
-            if feature.isValid():
-                # Update each attribute in the feature
-                fields = self.layer.fields()
-
-                success = True  # Track whether all attribute changes succeed
-                
-                for field_name, new_value in [
-                    ('Denumire', aux.denumire),
-                    ('Observatii', aux.observatii),
-                    ('POINT_X', aux.POINT_X),
-                    ('POINT_Y', aux.POINT_Y),
-                    ('POINT_M', aux.POINT_M),
-                ]:
-                    # Get the field index
-                    field_index = fields.indexFromName(field_name)
-                    if field_index == -1:
-                        QgsMessageLog.logMessage(f"Field '{field_name}' not found in layer.", "EnelAssist", Qgis.Warning)
-                        continue
-
-                    # Change the attribute value
-                    if not self.layer.changeAttributeValue(feature.id(), field_index, new_value):
-                        success = False
-                        QgsMessageLog.logMessage(f"Failed to update field '{field_name}' for feature ID {aux.id}.", "EnelAssist", Qgis.Warning)
-                    else:
-                        QgsMessageLog.logMessage(f"Feature ID {aux.id}: Field '{field_name}' updated successfully.", "EnelAssist", Qgis.Info)
-
-                if not success:
-                    QgsMessageLog.logMessage(f"Some attributes could not be updated for feature ID {aux.id}. Rolling back changes.", "EnelAssist", Qgis.Warning)
-                    self.layer.rollBack()
-                    return
-
-        # Commit changes to the layer
-        if not self.layer.commitChanges():
-            QgsMessageLog.logMessage("Failed to commit changes to the layer.", "EnelAssist", Qgis.Warning)
-        else:
-            QgsMessageLog.logMessage("Changes successfully committed to the layer.", "EnelAssist", Qgis.Info)
 
 

@@ -21,7 +21,7 @@ class LegNrstr:
         
         self.validation_rules: Dict[str, Any] = {
             'Join_Count': {
-                'rule': '1',
+                'rule': ['1'],
                 'required': True
             },
             'ID': {

@@ -23,7 +23,7 @@ class LegNoduri:
                 'required': True
             },
             "stare_cone": {
-                'rule': 'C - inchis',
+                'rule': ['C - inchis'],
                 'required': True
             },
             "nr_nod": {
@@ -31,7 +31,7 @@ class LegNoduri:
                 'required': False
             },
             "serie_nod": {
-                'rule': '7',
+                'rule': ['7'],
                 'required': True
             }
         }

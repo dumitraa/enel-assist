@@ -38,7 +38,7 @@ class DerivCT:
                 'required': False
             },
             "serie_nod": {
-                'rule': '6',
+                'rule': ['6'],
                 'required': True
             }
         }

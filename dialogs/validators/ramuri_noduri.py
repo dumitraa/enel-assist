@@ -28,7 +28,7 @@ class RamuriNoduri:
                 'required': True
             },
             'CIR': {
-                'rule': '0',
+                'rule': ['0'],
                 'required': True
             },
             'cod_materi': {

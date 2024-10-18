@@ -25,7 +25,7 @@ class BMP:
                 'required': True
             },
             "serie_cone": {
-                'rule': 'C - inchis',
+                'rule': ['C - inchis'],
                 'required': True
             },
             "nr_nod": {
@@ -33,7 +33,7 @@ class BMP:
                 'required': False
             },
             "serie_nod": {
-                'rule': '7',
+                'rule': ['7'],
                 'required': True
             }
         }

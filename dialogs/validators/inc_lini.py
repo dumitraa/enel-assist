@@ -19,11 +19,11 @@ class IncLini:
         
         self.validation_rules: Dict[str, Any] = {
             "denumire": {
-                'rule': '0',
+                'rule': ['0'],
                 'required': True
             },
             "stare_cone": {
-                'rule': 'C - inchis',
+                'rule': ['C - inchis'],
                 'required': True
             },
             "cod_societ": {
@@ -39,7 +39,7 @@ class IncLini:
                 'required': False
             },
             "serie_nod": {
-                'rule': '8',
+                'rule': ['8'],
                 'required': True
             },
             "Observatii": {
