@@ -4,8 +4,9 @@ from typing import Dict, Any, List
 iface = qgis.utils.iface
 
 class Auxiliar:
-    def __init__(self, id, denumire, observatii, POINT_X, POINT_Y, POINT_M, ignored=False):
+    def __init__(self, id, friendly_id, denumire, observatii, POINT_X, POINT_Y, POINT_M, ignored=False):
         self.id = id
+        self.friendly_id = friendly_id
         self.denumire = denumire
         self.observatii = observatii
         self.POINT_X = POINT_X
@@ -16,6 +17,7 @@ class Auxiliar:
     def to_dict(self):
         return {
             'id': self.id,
+            'friendly_id': self.friendly_id,
             'denumire': self.denumire,
             'observatii': self.observatii,
             'POINT_X': self.POINT_X,
@@ -60,6 +62,7 @@ class AuxiliarParser:
         for feature in self.layer.getFeatures():
             auxiliar_data = Auxiliar(
                 id=feature.id(),
+                friendly_id=feature.id() + 1,
                 denumire=feature['Denumire'] if feature['Denumire'] not in [None, 'NULL', 'nan'] else None,
                 observatii=feature['Observatii'] if feature['Observatii'] not in [None, 'NULL'] else None,
                 POINT_X=feature['POINT_X'] if feature['POINT_X'] not in [None, 'NULL', 'nan'] else None,
@@ -85,9 +88,9 @@ class AuxiliarParser:
                 if value is None and required:
                     self.invalid_elements.append({
                         'layer_name': "Auxiliar",
-                        'id': f"{aux.denumire if aux.denumire else f"ID {aux.id}"}",
+                        'id': aux.id,
                         'tag': field,
-                        'friendly_name': f"{self.mapping.get(field)}",
+                        'friendly_name': f"{aux.denumire if aux.denumire else f"ID {aux.friendly_id}"}",
                         'error': f"Câmpul trebuie să fie completat!",
                         'suggestions': rule
                     })
@@ -98,26 +101,30 @@ class AuxiliarParser:
                         if not isinstance(value, str):
                             self.invalid_elements.append({
                                 'layer_name': "Auxiliar",
-                                'id': f"{aux.denumire if aux.denumire else f"ID {aux.id}"}",
+                                'id': aux.id,
                                 'tag': field,
-                                'friendly_name': f"{self.mapping.get(field)}",
+                                'friendly_name': f"{aux.denumire if aux.denumire else f"ID {aux.friendly_id}"}",
                                 'error': f"Valoarea '{value}' nu este de tip text",
                                 'suggestions': rule
                             })
                             
                             QgsMessageLog.logMessage(f"Field {field} with value {value} is not of type 'str'", "EnelAssist", level=Qgis.Warning)
 
-        return self.invalid_elements if self.invalid_elements else [{'layer_name': self.layer.name()}]
+        return self.invalid_elements if self.invalid_elements else []
 
     def get_auxiliare_data(self):
         return self.auxiliare_data
 
     def update_feature(self, feature_id, field, value):
         for aux in self.auxiliare_data:
+            QgsMessageLog.logMessage(f"Comparing aux.id with feature_id - {aux.id} == {feature_id}?", "EnelAssist", level=Qgis.Info)
             if aux.id == feature_id:
+                QgsMessageLog.logMessage(f"Found feature {feature_id} in auxiliare data. Updating field {field} with value {value}", "EnelAssist", level=Qgis.Info)
                 setattr(aux, field, value)
                 print(f"Value was changed for Feature {feature_id}: {field} - {value}")
                 break
+            else:
+                QgsMessageLog.logMessage(f"Feature {feature_id} not found in auxiliare data.", "EnelAssist", level=Qgis.Warning)
 
     def save_to_layer(self):
         """

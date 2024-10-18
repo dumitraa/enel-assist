@@ -63,7 +63,7 @@ class ShpProcessor:
             QgsMessageLog.logMessage(f"Validating parser", "EnelAssist", 0)
             invalids = parser.validate()
             self.invalid_elements.append(invalids)
-            QgsMessageLog.logMessage(f"Validation completed for parser. Found {len(invalids)} invalid elements", "EnelAssist", 0)
+            QgsMessageLog.logMessage(f"Validation completed for parser. Found {len(invalids)} invalid elements, {invalids}", "EnelAssist", 0)
         QgsMessageLog.logMessage("Finished validating all SHP layers", "EnelAssist", 0)
 
 class ValidateDialog(QDialog):
@@ -284,6 +284,7 @@ class ValidateDialog(QDialog):
         
         self.widget_dict = {}
         
+        QgsMessageLog.logMessage(f"Current SHP index: {self.current_shp_index}, Current element page: {self.current_element_page}", "EnelAssist", 0)
         invalid_elements = self.processor.invalid_elements[self.current_shp_index]
         
         if not invalid_elements:
@@ -293,7 +294,7 @@ class ValidateDialog(QDialog):
             return
         else:
             self.invalid_elements_var.setText(f"Elemente invalide pentru SHP {invalid_elements[0].get('layer_name')}")
-            QgsMessageLog.logMessage("Invalid elements found for SHP", "EnelAssist", 1)
+            QgsMessageLog.logMessage(f"Invalid elements found for SHP - {invalid_elements}", "EnelAssist", 1)
 
         # Determine whether to show or hide next/prev buttons
         if len(invalid_elements) > self.EL:
@@ -368,7 +369,7 @@ class ValidateDialog(QDialog):
                 self.widget_dict[(element_id, tag, 'ignore')] = checkbox
 
                 # Label with element details
-                label = QLabel(f"{element_id} | {friendly_name}: {error} ")
+                label = QLabel(f"{friendly_name}: {error} ")
                 row_layout.addWidget(label)
 
                 # Suggestions or entry field
@@ -483,8 +484,10 @@ class ValidateDialog(QDialog):
                     
                     QgsMessageLog.logMessage(f"Updating parser with element {element_id}, tag {tag}, value {current_value}", "EnelAssist", 0)
                     
-                    if element_id and tag and current_value is not None:
-                        parser.update_feature(int(element_id.split()[-1]), tag.lower(), current_value)
+                    if element_id is not None and element_id != "" and tag:
+                        parser.update_feature(element_id, tag.lower(), current_value)
+                    else:
+                        QgsMessageLog.logMessage(f"Element {element_id} has no tag -- {tag} which is true? {tag == None}.  what about element_id? {element_id == None}", "EnelAssist", 1)
                 
             parser.save_to_layer()
 
