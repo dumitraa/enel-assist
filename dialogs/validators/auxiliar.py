@@ -30,7 +30,7 @@ class Auxiliar:
 
 class AuxiliarParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
-        self.layer = layer
+        super().__init__(layer, "auxiliar")
         
         self.mapping = {  # Attribute table values to friendly names
             'denumire': 'Denumire',
@@ -73,6 +73,8 @@ class AuxiliarParser(BaseParser):
             )
             QgsMessageLog.logMessage(f"Feature {auxiliar_data.denumire} parsed successfully with data {auxiliar_data.to_dict()}", "EnelAssist", level=Qgis.Info)
             self.auxiliare_data.append(auxiliar_data)
+            
+        self.data = self.auxiliare_data
 
     def get_auxiliare_data(self):
         return self.auxiliare_data

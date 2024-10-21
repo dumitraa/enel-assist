@@ -11,7 +11,6 @@ class BaseParser:
         if self.layer is None:
             raise ValueError(f"Layer named '{layer_name}' not found in the project.")
 
-        self.data = []
         self.invalid_elements = []
 
     def validate(self):
@@ -19,7 +18,7 @@ class BaseParser:
 
         def append_error(obj, field, error_msg, rule):
             """Helper function to append validation errors."""
-            friendly_name = obj.denumire or obj.denumire_a or f"ID {obj.friendly_id}"
+            friendly_name = getattr(obj, 'denumire', None) or getattr(obj, 'denumire_a', None) or f"ID {obj.friendly_id}"
             self.invalid_elements.append({
                 'layer_name': self.layer.name(),
                 'id': obj.id,
@@ -87,20 +86,27 @@ class BaseParser:
             feature = self.layer.getFeature(obj.id)
             if feature.isValid():
                 fields = self.layer.fields()
+                QgsMessageLog.logMessage(f"Feature ID {obj.id} found in layer. - {fields}", "EnelAssist", Qgis.Info)
 
                 success = True
                 
-                for field_name, new_value in obj.to_dict().items():
-                    field_index = fields.indexFromName(field_name)
+                for internal_field, layer_field in self.mapping.items():
+                    # Get the value from the Auxiliar object using getattr
+                    new_value = getattr(obj, internal_field, None)
+
+                    QgsMessageLog.logMessage(f"Updating field '{layer_field}' with value '{new_value}'", "EnelAssist", Qgis.Info)
+                    
+                    field_index = fields.indexFromName(layer_field)
                     if field_index == -1:
-                        QgsMessageLog.logMessage(f"Field '{field_name}' not found in layer.", "EnelAssist", Qgis.Warning)
+                        QgsMessageLog.logMessage(f"Field '{layer_field}' not found in layer.", "EnelAssist", Qgis.Warning)
                         continue
 
                     if not self.layer.changeAttributeValue(feature.id(), field_index, new_value):
                         success = False
-                        QgsMessageLog.logMessage(f"Failed to update field '{field_name}' for feature ID {obj.id}.", "EnelAssist", Qgis.Warning)
+                        QgsMessageLog.logMessage(f"Failed to update field '{layer_field}' for feature ID {obj.id}.", "EnelAssist", Qgis.Warning)
                     else:
-                        QgsMessageLog.logMessage(f"Feature ID {obj.id}: Field '{field_name}' updated successfully.", "EnelAssist", Qgis.Info)
+                        QgsMessageLog.logMessage(f"Feature ID {obj.id}: Field '{layer_field}' updated successfully.", "EnelAssist", Qgis.Info)
+
 
                 if not success:
                     QgsMessageLog.logMessage(f"Some attributes could not be updated for feature ID {obj.id}. Rolling back changes.", "EnelAssist", Qgis.Warning)
