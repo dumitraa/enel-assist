@@ -245,7 +245,7 @@ class EnelAssist:
         - for each Join Attributes by Location - add Join_Count column with all values '1'
         """
         QgsMessageLog.logMessage("Entering preprocess...", "EnelAssist", level=Qgis.Info)
-        pass
+        PreProcessDialog().exec_()
     
     
     def validate(self):

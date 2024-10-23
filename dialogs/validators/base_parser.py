@@ -91,7 +91,6 @@ class BaseParser:
                 success = True
                 
                 for internal_field, layer_field in self.mapping.items():
-                    # Get the value from the Auxiliar object using getattr
                     new_value = getattr(obj, internal_field, None)
 
                     QgsMessageLog.logMessage(f"Updating field '{layer_field}' with value '{new_value}'", "EnelAssist", Qgis.Info)
