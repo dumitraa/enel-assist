@@ -1,5 +1,5 @@
 """
-- LAYERS NEEDED - ['INC_LINI', 'Cutii', 'Stalpi', 'BMPnou', 'ReteaJT', 'NOD_NRSTR', 'AUXILIAR', 'pct_vrtx', "Numar_Postal"]
+- LAYERS NEEDED - ['inceput_linii', 'cutii', 'stalpi', 'bmpnou', 'reteajt', 'nod_nrstr', 'auxiliar', 'pct_vrtx', "numar_postal"]
 
 
 STEP 1. Calculate geometry for all shp files - X, Y coord line start and end
@@ -20,7 +20,7 @@ STEP 1. Calculate geometry for all shp files - X, Y coord line start and end
                 layer.changeAttributeValue(feature.id(), index, value)
             layer.commitChanges()
 
-STEP 2. ReteaJT - Add 'lungime', 'id' columns - double
+STEP 2. reteajt - Add 'lungime', 'id' columns - double
     > calculate length in "lungime" - length($geometry)
     > id - field calculator - FID - OK
     > example:
@@ -28,11 +28,11 @@ STEP 2. ReteaJT - Add 'lungime', 'id' columns - double
             layer.updateFields()
             # calc length with length($geometry)
 
-STEP 3. NOD_NRSTR - Add 'id' - double, Delete GlobalId (raman doar ID si FID)
+STEP 3. nod_nrstr - Add 'id' - double, Delete GlobalId (raman doar ID si FID)
     > id - field calculator - FID - OK
     
-STEP 4 - Merge Vector Layers - INC_LINI / Cutii / Stalpi / BMPnou > folder - NODURI
-STEP 5 - Merge Vector Layers - ReteaJT > folder - RAMURI
+STEP 4 - Merge Vector Layers - inceput_linii / cutii / stalpi / bmpnou > folder - NODURI
+STEP 5 - Merge Vector Layers - reteajt > folder - RAMURI
 
     > Use qgis:mergevectorlayers from the QGIS Processing Toolbox.
     > example:
@@ -43,7 +43,8 @@ STEP 5 - Merge Vector Layers - ReteaJT > folder - RAMURI
             })
 
 STEP 6. Join Attributes by Location - ramuri > noduri - ONE TO MANY > RAMURI_NODURI
-STEP 7. Join Attributes by Location - NOD_NRSTR > noduri - ONE TO ONE > LEG_NODURI
+STEP 7. Join Attributes by Location - nod_nrstr > noduri - ONE TO ONE > LEG_NODURI
+STEP 8. Join Attributes by Location - nod_nrstr > numar_postal - ONE TO ONE > LEG_NRSTR #TODO
     
     > Use qgis:joinattributesbylocation for spatial joins.
     > example:
@@ -56,25 +57,26 @@ STEP 7. Join Attributes by Location - NOD_NRSTR > noduri - ONE TO ONE > LEG_NODU
                 'DISCARD_NONMATCHING': False,
                 'OUTPUT': '/path/to/output.shp'
             })
+            
+STEP 9. Merge Vector Layers - inceput_linii, cutii, stalpi, bmpnou, auxiliar, pct_vrtx > folder - NODURI_AUX_VRTX
 
-STEP 8. Merge Vector Layers - INC_LINI, Cutii, Stalpi, BMPnou, AUXILIAR, pct_vrtx > folder - NODURI_AUX_VRTX
+STEP 10. Join Attributes by Location - ramuri > noduri_aux_vrtx - ONE TO MANY > RAMURI_AUX_VRTX
 
-STEP 9. Join Attributes by Location - ramuri > noduri_aux_vrtx - ONE TO MANY > RAMURI_AUX_VRTX
-
-STEP 10. ramuri_aux_vrtx - Add 'SEI' column - text
+STEP 11. RAMURI_AUX_VRTX - Add 'SEI' column - text
     > CASE 
         WHEN "Noduri" THEN 3
         ELSE 1
       END
 
-STEP 11. for each Join Attributes by Location - add Join_Count column with all values '1'
+STEP 12. for each Join Attributes by Location - add Join_Count column with all values '1'
+
 """
 
 import os
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QProgressBar, QPushButton, QFileDialog, QLabel, QListWidget, QListWidgetItem
 from qgis.core import (QgsExpression, QgsExpressionContext, QgsExpressionContextUtils, 
                        QgsField, QgsProject, QgsMessageLog, Qgis, QgsVectorLayer)
-from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtGui import QColor, QFont
 from qgis.PyQt.QtCore import QVariant, Qt
 import processing
 import logging
@@ -89,34 +91,46 @@ class PreProcessDialog(QDialog):
         self.setWindowTitle("Preprocess Data")
         self.layout = QVBoxLayout()
         
-        # Create a label for the progress text
+        # Label
         self.progress_text = QLabel("Steps to do:")
         self.layout.addWidget(self.progress_text)
 
         # Create a list to display the steps visually
         self.steps_list = QListWidget(self)
-        self.steps = [
-            "Calculeaza geometria",
-            "Adauga coloane 'lungime' si 'id' pentru ReteaJT",
-            "Adauga coloana 'id' pentru NOD_NRSTR",
-            "Uneste straturile pentru NODURI",
-            "Uneste straturile pentru RAMURI",
-            "Join Attributes by Location - RAMURI_NODURI",
-            "Join Attributes by Location - LEG_NODURI",
-            "Uneste straturile pentru NODURI_AUX_VRTX",
-            "Join Attributes by Location - RAMURI_AUX_VRTX",
-            "Adauga coloana 'SEI' pentru RAMURI_AUX_VRTX",
-            "Adauga coloana 'Join_Count' pentru toate join-urile"
-        ]
         
+        self.steps_list.setStyleSheet("""
+            QListWidget::item {
+                color: black;  # Keep text color normal (change to white for dark mode)
+                background-color: #f0f0f0;  # Default background for light mode
+            }
+            QListWidget::item:selected {
+                background-color: #d0e0f0;  # Slightly different background for selected items
+            }
+        """)  # This makes sure that the list looks normal even when disabled.
+
+        # Define the steps
+        self.steps = [
+            "1. Calculeaza geometria",
+            "2. Adauga coloane 'lungime' si 'id' pentru reteajt",
+            "3. Adauga coloana 'id' pentru nod_nrstr",
+            "4. Uneste straturile pentru NODURI",
+            "5. Uneste straturile pentru RAMURI",
+            "6. Join Attributes by Location - RAMURI_NODURI",
+            "7. Join Attributes by Location - LEG_NODURI",
+            "8. Join Attributes by Location - LEG_NRSTR"
+            "10. Uneste straturile pentru NODURI_AUX_VRTX",
+            "11. Join Attributes by Location - RAMURI_AUX_VRTX",
+            "12. Adauga coloana 'SEI' pentru RAMURI_AUX_VRTX",
+            "13. Adauga coloana 'Join_Count' pentru toate join-urile"
+        ]
+
+        # Add steps to the list, making them non-interactive
         for step in self.steps:
             item = QListWidgetItem(step)
-            item.setFlags(item.flags() & ~Qt.ItemIsSelectable & ~Qt.ItemIsEnabled)  # Make items non-interactive but fully visible
+            item.setFlags(item.flags() & ~Qt.ItemIsSelectable & ~Qt.ItemIsEnabled)  # Make items non-interactive but visible
             self.steps_list.addItem(item)
-        
+
         self.layout.addWidget(self.steps_list)
-        
-        self.steps_list.setDisabled(True)
 
         self.progress_bar = QProgressBar(self)
         self.layout.addWidget(self.progress_bar)
@@ -142,6 +156,8 @@ class PreProcessDialog(QDialog):
             total_steps = layers_count + 10
             self.progress_bar.setMaximum(total_steps)
             step = 0
+            self.base_dir = QFileDialog.getExistingDirectory(None, "Select Folder")
+            os.makedirs(self.base_dir, exist_ok=True)  # Ensure directory exists
 
             # Execute all processing steps
             QgsMessageLog.logMessage("-------- START OF DATA PREPROCESSING --------", "EnelAssist", level=Qgis.Info)
@@ -153,48 +169,48 @@ class PreProcessDialog(QDialog):
                     # QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
                     # logging.info(f"Calculating geometry for layer: {layer.name()}")
                     self.calculate_geometry(layer, 'START_X', 'START_Y', 'END_X', 'END_Y')
-                    self.update_step(1)  # Mark step 1 as done
                     step += 1
                     self.progress_bar.setValue(step)
+                self.update_step(0)  # Mark step 1 as done
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error calculating geometry for layers: {e}", "EnelAssist", level=Qgis.Critical)
                 logging.error(f"Error calculating geometry for layers: {e}")
                 return
 
-            # 2. Add 'lungime' and 'id' columns to ReteaJT and calculate geometry length
+            # 2. Add 'lungime' and 'id' columns to reteajt and calculate geometry length
             try:
-                self.add_length_and_id(self.layers['ReteaJT'], 'lungime', 'id')
-                self.update_step(2)  # Mark step 2 as done
+                self.add_length_and_id(self.layers['reteajt'], 'lungime', 'id')
+                self.update_step(1)  # Mark step 2 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except KeyError:
-                QgsMessageLog.logMessage(f"Layer 'ReteaJT' not found. The layers are {self.layers.keys()}", "EnelAssist", level=Qgis.Critical)
-                logging.error("Layer 'ReteaJT' not found.")
+                QgsMessageLog.logMessage(f"Layer 'reteajt' not found. The layers are {self.layers.keys()}", "EnelAssist", level=Qgis.Critical)
+                logging.error("Layer 'reteajt' not found.")
                 return
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error adding length and id columns: {e}", "EnelAssist", level=Qgis.Critical)
                 logging.error(f"Error adding length and id columns: {e}")
                 return
 
-            # 3. Manage NOD_NRSTR columns
+            # 3. Manage nod_nrstr columns
             try:
-                self.modify_nod_nrstr(self.layers['NOD_NRSTR'])
-                self.update_step(3)  # Mark step 3 as done
+                self.modify_nod_nrstr(self.layers['nod_nrstr'])
+                self.update_step(2)  # Mark step 3 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except KeyError:
-                QgsMessageLog.logMessage("Layer 'NOD_NRSTR' not found.", "EnelAssist", level=Qgis.Critical)
-                logging.error("Layer 'NOD_NRSTR' not found.")
+                QgsMessageLog.logMessage("Layer 'nod_nrstr' not found.", "EnelAssist", level=Qgis.Critical)
+                logging.error("Layer 'nod_nrstr' not found.")
                 return
             except Exception as e:
-                QgsMessageLog.logMessage(f"Error modifying 'NOD_NRSTR' columns: {e}", "EnelAssist", level=Qgis.Critical)
-                logging.error(f"Error modifying 'NOD_NRSTR' columns: {e}")
+                QgsMessageLog.logMessage(f"Error modifying 'nod_nrstr' columns: {e}", "EnelAssist", level=Qgis.Critical)
+                logging.error(f"Error modifying 'nod_nrstr' columns: {e}")
                 return
 
             # 4. Merge layers for NODURI
             try:
-                self.merge_layers([self.layers['INC_LINI'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou']], 'NODURI')
-                self.update_step(4)  # Mark step 4 as done
+                self.merge_layers([self.layers['inceput_linii'], self.layers['cutii'], self.layers['stalpi'], self.layers['bmpnou']], 'NODURI')
+                self.update_step(3)  # Mark step 4 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -204,8 +220,8 @@ class PreProcessDialog(QDialog):
 
             # 5. Merge layers for RAMURI
             try:
-                self.merge_layers([self.layers['ReteaJT']], 'RAMURI')
-                self.update_step(5)  # Mark step 5 as done
+                self.merge_layers([self.layers['reteajt']], 'RAMURI')
+                self.update_step(4)  # Mark step 5 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -216,7 +232,7 @@ class PreProcessDialog(QDialog):
             # 6. Join Attributes by Location - RAMURI_NODURI
             try:
                 self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI'], 'RAMURI_NODURI', 'One-to-Many')
-                self.update_step(6)  # Mark step 6 as done
+                self.update_step(5)  # Mark step 6 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -226,19 +242,30 @@ class PreProcessDialog(QDialog):
 
             # 7. Join Attributes by Location - LEG_NODURI
             try:
-                self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['NODURI'], 'LEG_NODURI', 'One-to-One')
-                self.update_step(7)  # Mark step 7 as done
+                self.join_attributes_by_location(self.layers['nod_nrstr'], self.layers['NODURI'], 'LEG_NODURI', 'One-to-One')
+                self.update_step(6)  # Mark step 7 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error joining attributes by location for LEG_NODURI: {e}", "EnelAssist", level=Qgis.Critical)
                 logging.error(f"Error joining attributes by location for LEG_NODURI: {e}")
                 return
-
-            # 8. Merge layers for NODURI_AUX_VRTX
+            
+            # 8. Join Attributes by Location - LEG_NRSTR
             try:
-                self.merge_layers([self.layers['INC_LINI'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou'], self.layers['AUXILIAR'], self.layers['pct_vrtx']], 'NODURI_AUX_VRTX')
-                self.update_step(8)  # Mark step 8 as done
+                self.join_attributes_by_location(self.layers['nod_nrstr'], self.layers['numar_postal'], 'LEG_NRSTR', 'One-to-One')
+                self.update_step(7)  # Mark step 8 as done
+                step += 1
+                self.progress_bar.setValue(step)
+            except Exception as e:
+                QgsMessageLog.logMessage(f"Error joining attributes by location for LEG_NRSTR: {e}", "EnelAssist", level=Qgis.Critical)
+                logging.error(f"Error joining attributes by location for LEG_NRSTR: {e}")
+                return
+
+            # 9. Merge layers for NODURI_AUX_VRTX
+            try:
+                self.merge_layers([self.layers['inceput_linii'], self.layers['cutii'], self.layers['stalpi'], self.layers['bmpnou'], self.layers['auxiliar'], self.layers['pct_vrtx']], 'NODURI_AUX_VRTX')
+                self.update_step(8)  # Mark step 9 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -246,10 +273,10 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error merging layers for NODURI_AUX_VRTX: {e}")
                 return
 
-            # 9. Join Attributes by Location - RAMURI_AUX_VRTX
+            # 10. Join Attributes by Location - RAMURI_AUX_VRTX
             try:
                 self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI_AUX_VRTX'], 'RAMURI_AUX_VRTX', 'One-to-Many')
-                self.update_step(9)  # Mark step 9 as done
+                self.update_step(9)  # Mark step 10 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -257,10 +284,10 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error joining attributes by location for RAMURI_AUX_VRTX: {e}")
                 return
 
-            # 10. Add 'SEI' column with conditional values
+            # 11. Add 'SEI' column with conditional values
             try:
-                self.add_sei_column(self.layers['RAMURI_AUX_VRTX'], 'SEI')
-                self.update_step(10)  # Mark step 10 as done
+                self.add_sei_column(self.layers['RAMURI_AUX_VRTX'].name())
+                self.update_step(10)  # Mark step 11 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -268,12 +295,12 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error adding 'SEI' column: {e}")
                 return
 
-            # 11. Add 'Join_Count' column for all joins with value '1'
+            # 12. Add 'Join_Count' column for all joins with value '1'
             try:
-                self.add_join_count_column('RAMURI_NODURI')
-                self.add_join_count_column('LEG_NODURI')
-                self.add_join_count_column('RAMURI_AUX_VRTX')
-                self.update_step(11)  # Mark step 11 as done
+                self.add_join_count_column(self.layers['RAMURI_NODURI'].name())
+                self.add_join_count_column(self.layers['LEG_NODURI'].name())
+                self.add_join_count_column(self.layers['RAMURI_AUX_VRTX'].name())
+                self.update_step(11)  # Mark step 12 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -281,7 +308,7 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error adding 'Join_Count' column: {e}")
                 return
 
-            # 12. Done
+            # 13. Done
             self.progress_bar.setValue(total_steps)
             QgsMessageLog.logMessage("Data preprocessing completed successfully.", "EnelAssist", level=Qgis.Info)
             logging.info("Data preprocessing completed successfully.")
@@ -293,8 +320,9 @@ class PreProcessDialog(QDialog):
     def update_step(self, index):
         """Marks a step as done by updating the list item."""
         item = self.steps_list.item(index)
-        item.setText(item.text() + " ✓")  # Add a checkmark or modify as needed
-        item.setForeground(QColor("green"))  # Optional: change color to green to indicate completion
+        item.setText(item.text() + " ✓")  # Add a checkmark
+        item.setForeground(QColor("green"))  # Change text color to green to indicate completion
+        item.setFont(QFont("Arial", 10, QFont.Bold))  # Make the completed step bold
 
     # Retrieve layers by name from the QGIS project
     def get_layers(self):
@@ -302,7 +330,7 @@ class PreProcessDialog(QDialog):
         Get layers by name from the QGIS project and add them to self.layers
         '''
         layers = {}
-        layer_names = ['INC_LINI', 'Cutii', 'Stalpi', 'BMPnou', 'ReteaJT', 'NOD_NRSTR', 'AUXILIAR', 'pct_vrtx', "Numar_Postal", "NODURI", "RAMURI", "RAMURI_NODURI", "LEG_NODURI", "NODURI_AUX_VRTX", "RAMURI_AUX_VRTX"]
+        layer_names = ['inceput_linii', 'cutii', 'stalpi', 'bmpnou', 'reteajt', 'nod_nrstr', 'auxiliar', 'pct_vrtx', "numar_postal", "NODURI", "RAMURI", "RAMURI_NODURI", "LEG_NODURI", "NODURI_AUX_VRTX", "RAMURI_AUX_VRTX"]
 
         # Get all layers in the current QGIS project (keep the layer objects)
         qgis_layers = QgsProject.instance().mapLayers().values()
@@ -429,7 +457,7 @@ class PreProcessDialog(QDialog):
             QgsMessageLog.logMessage(f"Error in add_length_and_id: {e}", "EnelAssist", level=Qgis.Critical)
             logging.error(f"Error in add_length_and_id: {e}")
 
-    # Modify 'NOD_NRSTR'
+    # Modify 'nod_nrstr'
     def modify_nod_nrstr(self, layer):
         QgsMessageLog.logMessage(f"Entered modify_nod_nrstr with layer: {layer.name()}, {layer}", "EnelAssist", level=Qgis.Info)
         try:
@@ -461,7 +489,7 @@ class PreProcessDialog(QDialog):
             
             QgsMessageLog.logMessage(f"Merging layers: {layer_list}", "EnelAssist", level=Qgis.Info)
             logging.info(f"Merging layers: {layer_list}")
-            output = QFileDialog.getSaveFileName(self, f'Save {folder} Layer', '', 'Geopackage (*.gpkg)')[0]
+            output = os.path.join(self.base_dir, f"{folder}.gpkg")
             if output and not QgsVectorLayer(output, '', 'ogr').isValid():
                 processing.run("qgis:mergevectorlayers", {
                     'LAYERS': layer_list, 
@@ -491,7 +519,7 @@ class PreProcessDialog(QDialog):
 
             QgsMessageLog.logMessage(f"Joining attributes by location: {input_file} with {join_file}", "EnelAssist", level=Qgis.Info)
             logging.info(f"Joining attributes by location: {input_file} with {join_file}")
-            output = QFileDialog.getSaveFileName(self, f'Save {output_name}', '', 'Shapefiles (*.shp)')[0]
+            output = os.path.join(self.base_dir, f"{output_name}.shp")
             if output:
                 processing.run("qgis:joinattributesbylocation", {
                     'INPUT': input_file,
@@ -510,31 +538,30 @@ class PreProcessDialog(QDialog):
 
 
     # Add 'SEI' column and calculate values
-    def add_sei_column(self, layer_name, column_name):
+    def add_sei_column(self, layer_name):
         try:
             QgsMessageLog.logMessage(f"Adding SEI column for layer: {layer_name}", "EnelAssist", level=Qgis.Info)
             logging.info(f"Adding SEI column for layer: {layer_name}")
-            lay_name = layer_name.name()
-            layer = QgsProject.instance().mapLayersByName(lay_name)[0]
-            if layer.fields().indexOf(column_name) != -1:
-                QgsMessageLog.logMessage(f"SEI column already exists for layer: {lay_name}", "EnelAssist", level=Qgis.Info)
-                logging.info(f"SEI column already exists for layer: {lay_name}")
+            layer = QgsProject.instance().mapLayersByName(layer_name)[0]
+            if layer.fields().indexOf('SEI') != -1:
+                QgsMessageLog.logMessage(f"SEI column already exists for layer: {layer_name}", "EnelAssist", level=Qgis.Info)
+                logging.info(f"SEI column already exists for layer: {layer_name}")
                 return
             
             layer.startEditing()
             # Add 'SEI' column as text
-            layer.dataProvider().addAttributes([QgsField(column_name, QVariant.String)])
+            layer.dataProvider().addAttributes([QgsField('SEI', QVariant.String)])
             layer.updateFields()
 
             # Expression to add the conditional values
-            sei_expr = QgsExpression('CASE WHEN "Noduri" THEN 3 ELSE 1 END')
+            sei_expr = QgsExpression('CASE WHEN "nr_nod" THEN 3 ELSE 1 END')
             context = QgsExpressionContext()
             context.appendScopes(QgsExpressionContextUtils.globalProjectLayerScopes(layer))
 
             for feature in layer.getFeatures():
                 context.setFeature(feature)
                 sei_value = sei_expr.evaluate(context)
-                layer.changeAttributeValue(feature.id(), layer.fields().indexOf(column_name), sei_value)
+                layer.changeAttributeValue(feature.id(), layer.fields().indexOf('SEI'), sei_value)
 
             layer.commitChanges()
         except Exception as e:
