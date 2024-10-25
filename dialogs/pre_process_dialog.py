@@ -73,7 +73,7 @@ STEP 12. for each Join Attributes by Location - add Join_Count column with all v
 """
 
 import os
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QProgressBar, QPushButton, QFileDialog, QLabel, QListWidget, QListWidgetItem
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QProgressBar, QPushButton, QFileDialog, QLabel, QListWidget, QListWidgetItem, QApplication
 from qgis.core import (QgsExpression, QgsExpressionContext, QgsExpressionContextUtils, 
                        QgsField, QgsProject, QgsMessageLog, Qgis, QgsVectorLayer)
 from qgis.PyQt.QtGui import QColor, QFont
@@ -110,18 +110,19 @@ class PreProcessDialog(QDialog):
 
         # Define the steps
         self.steps = [
-            "1. Calculeaza geometria",
-            "2. Adauga coloane 'lungime' si 'id' pentru ReteaJT",
-            "3. Adauga coloana 'id' pentru NOD_NRSTR",
-            "4. Uneste straturile pentru NODURI",
-            "5. Uneste straturile pentru RAMURI",
-            "6. Join Attributes by Location - RAMURI_NODURI",
-            "7. Join Attributes by Location - LEG_NODURI",
-            "8. Join Attributes by Location - LEG_NRSTR"
+            "1. Calculeaza X, Y la toate geometriile",
+            "2. Calculeaza START_X, START_Y, END_X, END_Y pentru ReteaJT",
+            "3. Adauga coloane 'lungime' si 'id' pentru ReteaJT",
+            "4. Adauga coloana 'id' pentru NOD_NRSTR",
+            "5. Uneste straturile pentru NODURI",
+            "6. Uneste straturile pentru RAMURI",
+            "7. Join Attributes by Location - RAMURI_NODURI",
+            "8. Join Attributes by Location - LEG_NODURI",
+            "9. Join Attributes by Location - LEG_NRSTR",
             "10. Uneste straturile pentru NODURI_AUX_VRTX",
             "11. Join Attributes by Location - RAMURI_AUX_VRTX",
             "12. Adauga coloana 'SEI' pentru RAMURI_AUX_VRTX",
-            "13. Adauga coloana 'Join_Count' pentru toate join-urile"
+            "13. Adauga coloana 'Join_Count' pentru toate join-urile",
         ]
 
         # Add steps to the list, making them non-interactive
@@ -129,6 +130,7 @@ class PreProcessDialog(QDialog):
             item = QListWidgetItem(step)
             item.setFlags(item.flags() & ~Qt.ItemIsSelectable & ~Qt.ItemIsEnabled)  # Make items non-interactive but visible
             self.steps_list.addItem(item)
+            QgsMessageLog.logMessage(f"{self.steps_list}", "EnelAssist", level=Qgis.Info)
 
         self.layout.addWidget(self.steps_list)
 
@@ -153,7 +155,7 @@ class PreProcessDialog(QDialog):
             
             # Update progress bar
             layers_count = len(self.layers)
-            total_steps = layers_count + 10
+            total_steps = 13  # Total number of processing steps
             self.progress_bar.setMaximum(total_steps)
             step = 0
             self.base_dir = QFileDialog.getExistingDirectory(None, "Select Folder")
@@ -165,12 +167,23 @@ class PreProcessDialog(QDialog):
 
             # 1. Calculate start and end points for each geometry
             try:
+                for layer in self.layers.values():
+                    self.calculate_geometry(layer, 'POINT_X', 'POINT_Y', None, None, None, None)
+                    step += 1
+                    self.progress_bar.setValue(step)
+                self.update_step(0)  # Mark step 1 as done
+            except Exception as e:
+                QgsMessageLog.logMessage(f"Error calculating geometry for layerZ POINT X POINT Y: {e}", "EnelAssist", level=Qgis.Critical)
+                logging.error(f"Error calculating geometry for layers: {e}")
+                return
+
+            try:
                 # QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
                 # logging.info(f"Calculating geometry for layer: {layer.name()}")
-                self.calculate_geometry(self.layers["ReteaJT"], 'START_X', 'START_Y', 'END_X', 'END_Y')
+                self.calculate_geometry(self.layers["ReteaJT"], None, None, 'START_X', 'START_Y', 'END_X', 'END_Y')
                 step += 1
                 self.progress_bar.setValue(step)
-                self.update_step(0)  # Mark step 1 as done
+                self.update_step(1)  # Mark step 1 as done
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error calculating geometry for layers: {e}", "EnelAssist", level=Qgis.Critical)
                 logging.error(f"Error calculating geometry for layers: {e}")
@@ -179,7 +192,7 @@ class PreProcessDialog(QDialog):
             # 2. Add 'lungime' and 'id' columns to ReteaJT and calculate geometry length
             try:
                 self.add_length_and_id(self.layers['ReteaJT'], 'lungime', 'id')
-                self.update_step(1)  # Mark step 2 as done
+                self.update_step(2)  # Mark step 2 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except KeyError:
@@ -194,7 +207,7 @@ class PreProcessDialog(QDialog):
             # 3. Manage NOD_NRSTR columns
             try:
                 self.modify_nod_nrstr(self.layers['NOD_NRSTR'])
-                self.update_step(2)  # Mark step 3 as done
+                self.update_step(3)  # Mark step 3 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except KeyError:
@@ -209,7 +222,7 @@ class PreProcessDialog(QDialog):
             # 4. Merge layers for NODURI
             try:
                 self.merge_layers([self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou']], 'NODURI')
-                self.update_step(3)  # Mark step 4 as done
+                self.update_step(4)  # Mark step 4 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -220,7 +233,7 @@ class PreProcessDialog(QDialog):
             # 5. Merge layers for RAMURI
             try:
                 self.merge_layers([self.layers['ReteaJT']], 'RAMURI')
-                self.update_step(4)  # Mark step 5 as done
+                self.update_step(5)  # Mark step 5 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -231,7 +244,7 @@ class PreProcessDialog(QDialog):
             # 6. Join Attributes by Location - RAMURI_NODURI
             try:
                 self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI'], 'RAMURI_NODURI', 'One-to-Many')
-                self.update_step(5)  # Mark step 6 as done
+                self.update_step(6)  # Mark step 6 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -242,7 +255,7 @@ class PreProcessDialog(QDialog):
             # 7. Join Attributes by Location - LEG_NODURI
             try:
                 self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['NODURI'], 'LEG_NODURI', 'One-to-One')
-                self.update_step(6)  # Mark step 7 as done
+                self.update_step(7)  # Mark step 7 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -253,7 +266,7 @@ class PreProcessDialog(QDialog):
             # 8. Join Attributes by Location - LEG_NRSTR
             try:
                 self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['Numar_Postal'], 'LEG_NRSTR', 'One-to-One')
-                self.update_step(7)  # Mark step 8 as done
+                self.update_step(8)  # Mark step 8 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -264,7 +277,7 @@ class PreProcessDialog(QDialog):
             # 9. Merge layers for NODURI_AUX_VRTX
             try:
                 self.merge_layers([self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou'], self.layers['AUXILIAR'], self.layers['pct_vrtx']], 'NODURI_AUX_VRTX')
-                self.update_step(8)  # Mark step 9 as done
+                self.update_step(9)  # Mark step 9 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -275,7 +288,7 @@ class PreProcessDialog(QDialog):
             # 10. Join Attributes by Location - RAMURI_AUX_VRTX
             try:
                 self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI_AUX_VRTX'], 'RAMURI_AUX_VRTX', 'One-to-Many')
-                self.update_step(9)  # Mark step 10 as done
+                self.update_step(10)  # Mark step 10 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -286,7 +299,7 @@ class PreProcessDialog(QDialog):
             # 11. Add 'SEI' column with conditional values
             try:
                 self.add_sei_column(self.layers['RAMURI_AUX_VRTX'].name())
-                self.update_step(10)  # Mark step 11 as done
+                self.update_step(11)  # Mark step 11 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -299,7 +312,7 @@ class PreProcessDialog(QDialog):
                 self.add_join_count_column(self.layers['RAMURI_NODURI'].name())
                 self.add_join_count_column(self.layers['LEG_NODURI'].name())
                 self.add_join_count_column(self.layers['LEG_NRSTR'].name())
-                self.update_step(11)  # Mark step 12 as done
+                self.update_step(12)  # Mark step 12 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -318,10 +331,17 @@ class PreProcessDialog(QDialog):
 
     def update_step(self, index):
         """Marks a step as done by updating the list item."""
-        item = self.steps_list.item(index)
-        item.setText(item.text() + " ✓")  # Add a checkmark
-        item.setForeground(QColor("green"))  # Change text color to green to indicate completion
-        item.setFont(QFont("Arial", 10, QFont.Bold))  # Make the completed step bold
+        try:
+            item = self.steps_list.item(index)
+            QgsMessageLog.logMessage(f"Updating step {index}: {item.text()}", "EnelAssist", level=Qgis.Info)
+            item.setText("✓ " + item.text())  # Add a checkmark
+            item.setForeground(QColor("green"))  # Change text color to green to indicate completion
+            item.setFont(QFont("Arial", 10, QFont.Bold))  # Make the completed step bold
+            QApplication.processEvents()  # Force UI update after each step
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error updating step {index}: {e}", "EnelAssist", level=Qgis.Critical)
+            logging.error(f"Error updating step {index}: {e}")
+            pass
 
     # Retrieve layers by name from the QGIS project
     def get_layers(self):
@@ -379,46 +399,72 @@ class PreProcessDialog(QDialog):
 
 
 
-# Geometry Calculation for X, Y coords
-    def calculate_geometry(self, layer, start_x, start_y, end_x, end_y):
+    # Geometry Calculation for X, Y coords
+    def calculate_geometry(self, layer, x=None, y=None, start_x=None, start_y=None, end_x=None, end_y=None):
         try:
-            # QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
-            # logging.info(f"Calculating geometry for layer: {layer.name()}")
-
-            # Check if the fields already exist
             existing_fields = [field.name() for field in layer.fields()]
-            if all(field in existing_fields for field in [start_x, start_y, end_x, end_y]):
-                # QgsMessageLog.logMessage(f"Fields already exist. Skipping geometry calculation for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
-                # logging.info(f"Fields already exist. Skipping geometry calculation for layer: {layer.name()}")
+            
+            # Determine which fields need to be added based on provided parameters
+            fields_to_add = []
+            if x and x not in existing_fields:
+                fields_to_add.append(QgsField(x, QVariant.Double))
+            if y and y not in existing_fields:
+                fields_to_add.append(QgsField(y, QVariant.Double))
+            if start_x and start_x not in existing_fields:
+                fields_to_add.append(QgsField(start_x, QVariant.Double))
+            if start_y and start_y not in existing_fields:
+                fields_to_add.append(QgsField(start_y, QVariant.Double))
+            if end_x and end_x not in existing_fields:
+                fields_to_add.append(QgsField(end_x, QVariant.Double))
+            if end_y and end_y not in existing_fields:
+                fields_to_add.append(QgsField(end_y, QVariant.Double))
+
+            # If no new fields are needed, skip geometry calculation
+            if not fields_to_add:
+                QgsMessageLog.logMessage(f"No new fields to add for layer: {layer.name()}. Skipping geometry calculation.", "EnelAssist", level=Qgis.Info)
                 return
 
+            # Add new fields and set layer to editing mode
             layer.startEditing()
+            layer.dataProvider().addAttributes(fields_to_add)
+            layer.updateFields()
 
-            # Expression for Start and End points
-            start_x_expr = QgsExpression('x(start_point($geometry))')
-            start_y_expr = QgsExpression('y(start_point($geometry))')
-            end_x_expr = QgsExpression('x(end_point($geometry))')
-            end_y_expr = QgsExpression('y(end_point($geometry))')
-
+            # Set up the context for expressions
             context = QgsExpressionContext()
             context.appendScopes(QgsExpressionContextUtils.globalProjectLayerScopes(layer))
 
-            # Adding new fields for coordinates
-            layer.dataProvider().addAttributes([QgsField(start_x, QVariant.Double), QgsField(start_y, QVariant.Double), 
-                                                QgsField(end_x, QVariant.Double), QgsField(end_y, QVariant.Double)])
-            layer.updateFields()
+            # Expression setup for either POINT_X/Y or START/END points
+            if x and y:
+                x_expr = QgsExpression('x($geometry)')
+                y_expr = QgsExpression('y($geometry)')
+                
+                for feature in layer.getFeatures():
+                    context.setFeature(feature)
+                    x_value = x_expr.evaluate(context)
+                    y_value = y_expr.evaluate(context)
+                    
+                    layer.changeAttributeValue(feature.id(), layer.fields().indexOf(x), x_value)
+                    layer.changeAttributeValue(feature.id(), layer.fields().indexOf(y), y_value)
 
-            for feature in layer.getFeatures():
-                context.setFeature(feature)
-                layer.changeAttributeValue(feature.id(), layer.fields().indexOf(start_x), start_x_expr.evaluate(context))
-                layer.changeAttributeValue(feature.id(), layer.fields().indexOf(start_y), start_y_expr.evaluate(context))
-                layer.changeAttributeValue(feature.id(), layer.fields().indexOf(end_x), end_x_expr.evaluate(context))
-                layer.changeAttributeValue(feature.id(), layer.fields().indexOf(end_y), end_y_expr.evaluate(context))
+            elif start_x and start_y and end_x and end_y:
+                start_x_expr = QgsExpression('x(start_point($geometry))')
+                start_y_expr = QgsExpression('y(start_point($geometry))')
+                end_x_expr = QgsExpression('x(end_point($geometry))')
+                end_y_expr = QgsExpression('y(end_point($geometry))')
 
+                for feature in layer.getFeatures():
+                    context.setFeature(feature)
+                    layer.changeAttributeValue(feature.id(), layer.fields().indexOf(start_x), start_x_expr.evaluate(context))
+                    layer.changeAttributeValue(feature.id(), layer.fields().indexOf(start_y), start_y_expr.evaluate(context))
+                    layer.changeAttributeValue(feature.id(), layer.fields().indexOf(end_x), end_x_expr.evaluate(context))
+                    layer.changeAttributeValue(feature.id(), layer.fields().indexOf(end_y), end_y_expr.evaluate(context))
+
+            # Commit the changes to the layer
             layer.commitChanges()
+
         except Exception as e:
-            QgsMessageLog.logMessage(f"Error in calculate_geometry: {e}", "EnelAssist", level=Qgis.Critical)
-            logging.error(f"Error in calculate_geometry: {e}")
+            QgsMessageLog.logMessage(f"Error in calculate_geometry for layer {layer.name()}: {e}", "EnelAssist", level=Qgis.Critical)
+            logging.error(f"Error in calculate_geometry for layer {layer.name()}: {e}")
 
 
     # Add 'lungime' and 'id' fields
@@ -462,16 +508,34 @@ class PreProcessDialog(QDialog):
         try:
             QgsMessageLog.logMessage(f"Modifying layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
             logging.info(f"Modifying layer: {layer.name()}")
-            if 'GlobalId' not in [field.name() for field in layer.fields()]:
-                QgsMessageLog.logMessage(f"GlobalId already removed in layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
-                logging.info(f"GlobalId already removed in layer: {layer.name()}")
-                return
+
             layer.startEditing()
-            # Remove 'GlobalId', keep 'ID' and 'FID'
-            layer.dataProvider().deleteAttributes([layer.fields().indexOf('GlobalId')])
-            layer.updateFields()
+
+            # Step 1: Remove 'GlobalId' if it exists
+            if 'GlobalId' in [field.name() for field in layer.fields()]:
+                layer.dataProvider().deleteAttributes([layer.fields().indexOf('GlobalId')])
+                layer.updateFields()
+                QgsMessageLog.logMessage(f"Removed 'GlobalId' from layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+                logging.info(f"Removed 'GlobalId' from layer: {layer.name()}")
+            
+            # Step 2: Add 'id' field if it doesn't exist
+            if 'id' not in [field.name() for field in layer.fields()]:
+                layer.dataProvider().addAttributes([QgsField('id', QVariant.Double)])
+                layer.updateFields()
+                QgsMessageLog.logMessage(f"Added 'id' field to layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+                logging.info(f"Added 'id' field to layer: {layer.name()}")
+            
+            # Step 3: Populate 'id' field with 'FID' values
+            for feature in layer.getFeatures():
+                feature['id'] = feature.id()  # Using feature.id() to get FID
+                layer.updateFeature(feature)
+            
             layer.commitChanges()
+            QgsMessageLog.logMessage(f"Successfully modified layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+            logging.info(f"Successfully modified layer: {layer.name()}")
+            
         except Exception as e:
+            layer.rollBack()  # Rollback any changes if there's an error
             QgsMessageLog.logMessage(f"Error in modify_nod_nrstr: {e}", "EnelAssist", level=Qgis.Critical)
             logging.error(f"Error in modify_nod_nrstr: {e}")
 
@@ -587,6 +651,6 @@ class PreProcessDialog(QDialog):
 
             layer.commitChanges()
         except Exception as e:
-            QgsMessageLog.logMessage(f"Error in add_join_count_column: {e}", "EnelAssist", level=Qgis.Critical)
+            QgsMessageLog.logMessage(f"Error in add_join_count_column: {e} for layer: {layer_name}", "EnelAssist", level=Qgis.Critical)
             logging.error(f"Error in add_join_count_column: {e}")
 
