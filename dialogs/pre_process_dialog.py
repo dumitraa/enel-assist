@@ -64,7 +64,7 @@ STEP 10. Join Attributes by Location - ramuri > noduri_aux_vrtx - ONE TO MANY > 
 
 STEP 11. RAMURI_AUX_VRTX - Add 'SEI' column - text
     > CASE 
-        WHEN "Noduri" THEN 3
+        WHEN "nr_nod" THEN 3
         ELSE 1
       END
 
