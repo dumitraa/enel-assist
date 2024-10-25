@@ -1,5 +1,5 @@
 """
-- LAYERS NEEDED - ['inceput_linii', 'cutii', 'stalpi', 'bmpnou', 'reteajt', 'nod_nrstr', 'auxiliar', 'pct_vrtx', "numar_postal"]
+- LAYERS NEEDED - ['InceputLinie', 'Cutii', 'Stalpi', 'BMPnou', 'ReteaJT', 'NOD_NRSTR', 'AUXILIAR', 'pct_vrtx', "Numar_Postal"]
 
 
 STEP 1. Calculate geometry for all shp files - X, Y coord line start and end
@@ -20,7 +20,7 @@ STEP 1. Calculate geometry for all shp files - X, Y coord line start and end
                 layer.changeAttributeValue(feature.id(), index, value)
             layer.commitChanges()
 
-STEP 2. reteajt - Add 'lungime', 'id' columns - double
+STEP 2. ReteaJT - Add 'lungime', 'id' columns - double
     > calculate length in "lungime" - length($geometry)
     > id - field calculator - FID - OK
     > example:
@@ -28,11 +28,11 @@ STEP 2. reteajt - Add 'lungime', 'id' columns - double
             layer.updateFields()
             # calc length with length($geometry)
 
-STEP 3. nod_nrstr - Add 'id' - double, Delete GlobalId (raman doar ID si FID)
+STEP 3. NOD_NRSTR - Add 'id' - double, Delete GlobalId (raman doar ID si FID)
     > id - field calculator - FID - OK
     
-STEP 4 - Merge Vector Layers - inceput_linii / cutii / stalpi / bmpnou > folder - NODURI
-STEP 5 - Merge Vector Layers - reteajt > folder - RAMURI
+STEP 4 - Merge Vector Layers - InceputLinie / Cutii / Stalpi / BMPnou > folder - NODURI
+STEP 5 - Merge Vector Layers - ReteaJT > folder - RAMURI
 
     > Use qgis:mergevectorlayers from the QGIS Processing Toolbox.
     > example:
@@ -43,8 +43,8 @@ STEP 5 - Merge Vector Layers - reteajt > folder - RAMURI
             })
 
 STEP 6. Join Attributes by Location - ramuri > noduri - ONE TO MANY > RAMURI_NODURI
-STEP 7. Join Attributes by Location - nod_nrstr > noduri - ONE TO ONE > LEG_NODURI
-STEP 8. Join Attributes by Location - nod_nrstr > numar_postal - ONE TO ONE > LEG_NRSTR #TODO
+STEP 7. Join Attributes by Location - NOD_NRSTR > noduri - ONE TO ONE > LEG_NODURI
+STEP 8. Join Attributes by Location - NOD_NRSTR > Numar_Postal - ONE TO ONE > LEG_NRSTR #TODO
     
     > Use qgis:joinattributesbylocation for spatial joins.
     > example:
@@ -58,7 +58,7 @@ STEP 8. Join Attributes by Location - nod_nrstr > numar_postal - ONE TO ONE > LE
                 'OUTPUT': '/path/to/output.shp'
             })
             
-STEP 9. Merge Vector Layers - inceput_linii, cutii, stalpi, bmpnou, auxiliar, pct_vrtx > folder - NODURI_AUX_VRTX
+STEP 9. Merge Vector Layers - InceputLinie, Cutii, Stalpi, BMPnou, AUXILIAR, pct_vrtx > folder - NODURI_AUX_VRTX
 
 STEP 10. Join Attributes by Location - ramuri > noduri_aux_vrtx - ONE TO MANY > RAMURI_AUX_VRTX
 
@@ -111,8 +111,8 @@ class PreProcessDialog(QDialog):
         # Define the steps
         self.steps = [
             "1. Calculeaza geometria",
-            "2. Adauga coloane 'lungime' si 'id' pentru reteajt",
-            "3. Adauga coloana 'id' pentru nod_nrstr",
+            "2. Adauga coloane 'lungime' si 'id' pentru ReteaJT",
+            "3. Adauga coloana 'id' pentru NOD_NRSTR",
             "4. Uneste straturile pentru NODURI",
             "5. Uneste straturile pentru RAMURI",
             "6. Join Attributes by Location - RAMURI_NODURI",
@@ -165,51 +165,50 @@ class PreProcessDialog(QDialog):
 
             # 1. Calculate start and end points for each geometry
             try:
-                for layer in self.layers.values():
-                    # QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
-                    # logging.info(f"Calculating geometry for layer: {layer.name()}")
-                    self.calculate_geometry(layer, 'START_X', 'START_Y', 'END_X', 'END_Y')
-                    step += 1
-                    self.progress_bar.setValue(step)
+                # QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+                # logging.info(f"Calculating geometry for layer: {layer.name()}")
+                self.calculate_geometry(self.layers["ReteaJT"], 'START_X', 'START_Y', 'END_X', 'END_Y')
+                step += 1
+                self.progress_bar.setValue(step)
                 self.update_step(0)  # Mark step 1 as done
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error calculating geometry for layers: {e}", "EnelAssist", level=Qgis.Critical)
                 logging.error(f"Error calculating geometry for layers: {e}")
                 return
 
-            # 2. Add 'lungime' and 'id' columns to reteajt and calculate geometry length
+            # 2. Add 'lungime' and 'id' columns to ReteaJT and calculate geometry length
             try:
-                self.add_length_and_id(self.layers['reteajt'], 'lungime', 'id')
+                self.add_length_and_id(self.layers['ReteaJT'], 'lungime', 'id')
                 self.update_step(1)  # Mark step 2 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except KeyError:
-                QgsMessageLog.logMessage(f"Layer 'reteajt' not found. The layers are {self.layers.keys()}", "EnelAssist", level=Qgis.Critical)
-                logging.error("Layer 'reteajt' not found.")
+                QgsMessageLog.logMessage(f"Layer 'ReteaJT' not found. The layers are {self.layers.keys()}", "EnelAssist", level=Qgis.Critical)
+                logging.error("Layer 'ReteaJT' not found.")
                 return
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error adding length and id columns: {e}", "EnelAssist", level=Qgis.Critical)
                 logging.error(f"Error adding length and id columns: {e}")
                 return
 
-            # 3. Manage nod_nrstr columns
+            # 3. Manage NOD_NRSTR columns
             try:
-                self.modify_nod_nrstr(self.layers['nod_nrstr'])
+                self.modify_nod_nrstr(self.layers['NOD_NRSTR'])
                 self.update_step(2)  # Mark step 3 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except KeyError:
-                QgsMessageLog.logMessage("Layer 'nod_nrstr' not found.", "EnelAssist", level=Qgis.Critical)
-                logging.error("Layer 'nod_nrstr' not found.")
+                QgsMessageLog.logMessage("Layer 'NOD_NRSTR' not found.", "EnelAssist", level=Qgis.Critical)
+                logging.error("Layer 'NOD_NRSTR' not found.")
                 return
             except Exception as e:
-                QgsMessageLog.logMessage(f"Error modifying 'nod_nrstr' columns: {e}", "EnelAssist", level=Qgis.Critical)
-                logging.error(f"Error modifying 'nod_nrstr' columns: {e}")
+                QgsMessageLog.logMessage(f"Error modifying 'NOD_NRSTR' columns: {e}", "EnelAssist", level=Qgis.Critical)
+                logging.error(f"Error modifying 'NOD_NRSTR' columns: {e}")
                 return
 
             # 4. Merge layers for NODURI
             try:
-                self.merge_layers([self.layers['inceput_linii'], self.layers['cutii'], self.layers['stalpi'], self.layers['bmpnou']], 'NODURI')
+                self.merge_layers([self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou']], 'NODURI')
                 self.update_step(3)  # Mark step 4 as done
                 step += 1
                 self.progress_bar.setValue(step)
@@ -220,7 +219,7 @@ class PreProcessDialog(QDialog):
 
             # 5. Merge layers for RAMURI
             try:
-                self.merge_layers([self.layers['reteajt']], 'RAMURI')
+                self.merge_layers([self.layers['ReteaJT']], 'RAMURI')
                 self.update_step(4)  # Mark step 5 as done
                 step += 1
                 self.progress_bar.setValue(step)
@@ -242,7 +241,7 @@ class PreProcessDialog(QDialog):
 
             # 7. Join Attributes by Location - LEG_NODURI
             try:
-                self.join_attributes_by_location(self.layers['nod_nrstr'], self.layers['NODURI'], 'LEG_NODURI', 'One-to-One')
+                self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['NODURI'], 'LEG_NODURI', 'One-to-One')
                 self.update_step(6)  # Mark step 7 as done
                 step += 1
                 self.progress_bar.setValue(step)
@@ -253,7 +252,7 @@ class PreProcessDialog(QDialog):
             
             # 8. Join Attributes by Location - LEG_NRSTR
             try:
-                self.join_attributes_by_location(self.layers['nod_nrstr'], self.layers['numar_postal'], 'LEG_NRSTR', 'One-to-One')
+                self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['Numar_Postal'], 'LEG_NRSTR', 'One-to-One')
                 self.update_step(7)  # Mark step 8 as done
                 step += 1
                 self.progress_bar.setValue(step)
@@ -264,7 +263,7 @@ class PreProcessDialog(QDialog):
 
             # 9. Merge layers for NODURI_AUX_VRTX
             try:
-                self.merge_layers([self.layers['inceput_linii'], self.layers['cutii'], self.layers['stalpi'], self.layers['bmpnou'], self.layers['auxiliar'], self.layers['pct_vrtx']], 'NODURI_AUX_VRTX')
+                self.merge_layers([self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou'], self.layers['AUXILIAR'], self.layers['pct_vrtx']], 'NODURI_AUX_VRTX')
                 self.update_step(8)  # Mark step 9 as done
                 step += 1
                 self.progress_bar.setValue(step)
@@ -299,7 +298,7 @@ class PreProcessDialog(QDialog):
             try:
                 self.add_join_count_column(self.layers['RAMURI_NODURI'].name())
                 self.add_join_count_column(self.layers['LEG_NODURI'].name())
-                self.add_join_count_column(self.layers['RAMURI_AUX_VRTX'].name())
+                self.add_join_count_column(self.layers['LEG_NRSTR'].name())
                 self.update_step(11)  # Mark step 12 as done
                 step += 1
                 self.progress_bar.setValue(step)
@@ -330,7 +329,7 @@ class PreProcessDialog(QDialog):
         Get layers by name from the QGIS project and add them to self.layers
         '''
         layers = {}
-        layer_names = ['inceput_linii', 'cutii', 'stalpi', 'bmpnou', 'reteajt', 'nod_nrstr', 'auxiliar', 'pct_vrtx', "numar_postal", "NODURI", "RAMURI", "RAMURI_NODURI", "LEG_NODURI", "NODURI_AUX_VRTX", "RAMURI_AUX_VRTX"]
+        layer_names = ['InceputLinie', 'Cutii', 'Stalpi', 'BMPnou', 'ReteaJT', 'NOD_NRSTR', 'AUXILIAR', 'pct_vrtx', "Numar_Postal", "NODURI", "RAMURI", "RAMURI_NODURI", "LEG_NODURI", "NODURI_AUX_VRTX", "RAMURI_AUX_VRTX", "LEG_NRSTR"]
 
         # Get all layers in the current QGIS project (keep the layer objects)
         qgis_layers = QgsProject.instance().mapLayers().values()
@@ -457,7 +456,7 @@ class PreProcessDialog(QDialog):
             QgsMessageLog.logMessage(f"Error in add_length_and_id: {e}", "EnelAssist", level=Qgis.Critical)
             logging.error(f"Error in add_length_and_id: {e}")
 
-    # Modify 'nod_nrstr'
+    # Modify 'NOD_NRSTR'
     def modify_nod_nrstr(self, layer):
         QgsMessageLog.logMessage(f"Entered modify_nod_nrstr with layer: {layer.name()}, {layer}", "EnelAssist", level=Qgis.Info)
         try:
@@ -526,7 +525,7 @@ class PreProcessDialog(QDialog):
                     'JOIN': join_file,
                     'PREDICATE': [0],  # intersects
                     'JOIN_FIELDS': [],
-                    'METHOD': 1 if method == 'One-to-Many' else 0,  # One-to-Many or One-to-One
+                    'METHOD': 0 if method == 'One-to-Many' else 1,  # One-to-Many or One-to-One
                     'DISCARD_NONMATCHING': False,
                     'OUTPUT': output
                 })
