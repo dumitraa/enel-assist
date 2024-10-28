@@ -91,7 +91,7 @@ class CdParser(BaseParser):
                 POINT_Y=feature['POINT_Y'] if feature['POINT_Y'] not in [None, 'NULL', 'nan'] else None,
                 POINT_M=feature['POINT_M'] if feature['POINT_M'] not in [None, 'NULL', 'nan'] else None
             )
-            QgsMessageLog.logMessage(f"Feature {cd_data.denumire} parsed successfully with data {cd_data.to_dict()}", "EnelAssist", level=Qgis.Info)
+            # QgsMessageLog.logMessage(f"Feature {cd_data.denumire} parsed successfully with data {cd_data.to_dict()}", "EnelAssist", level=Qgis.Info)
             self.cd_data.append(cd_data)
             
         self.data = self.cd_data

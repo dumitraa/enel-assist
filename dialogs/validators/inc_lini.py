@@ -119,7 +119,7 @@ class IncLiniParser(BaseParser):
                 POINT_Z=feature['POINT_Z'] if feature['POINT_Z'] not in [None, 'NULL', 'nan'] else None,
                 POINT_M=feature['POINT_M'] if feature['POINT_M'] not in [None, 'NULL', 'nan'] else None
             )
-            QgsMessageLog.logMessage(f"Feature {inclini_data.denumire} parsed successfully with data {inclini_data.to_dict()}", "EnelAssist", level=Qgis.Info)
+            # QgsMessageLog.logMessage(f"Feature {inclini_data.denumire} parsed successfully with data {inclini_data.to_dict()}", "EnelAssist", level=Qgis.Info)
             self.inclini_data.append(inclini_data)
             
         self.data = self.inclini_data

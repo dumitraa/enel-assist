@@ -113,7 +113,7 @@ class LegNrstrParser(BaseParser):
                 POINT_Z=feature['POINT_Z'] if feature['POINT_Z'] not in [None, 'NULL', 'nan'] else None,
                 POINT_M=feature['POINT_M'] if feature['POINT_M'] not in [None, 'NULL', 'nan'] else None
             )
-            QgsMessageLog.logMessage(f"Feature {leg_nrstr_data.nr_strada} parsed successfully with data {leg_nrstr_data.to_dict()}", "EnelAssist", level=Qgis.Info)
+            # QgsMessageLog.logMessage(f"Feature {leg_nrstr_data.nr_strada} parsed successfully with data {leg_nrstr_data.to_dict()}", "EnelAssist", level=Qgis.Info)
             self.leg_nrstr_data.append(leg_nrstr_data)
             
         self.data = self.leg_nrstr_data

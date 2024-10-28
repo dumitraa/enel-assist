@@ -42,9 +42,9 @@ STEP 5 - Merge Vector Layers - ReteaJT > folder - RAMURI
                 'OUTPUT': '/path/to/output/layer.gpkg'
             })
 
-STEP 6. Join Attributes by Location - ramuri > noduri - ONE TO MANY > RAMURI_NODURI
-STEP 7. Join Attributes by Location - NOD_NRSTR > noduri - ONE TO ONE > LEG_NODURI
-STEP 8. Join Attributes by Location - NOD_NRSTR > Numar_Postal - ONE TO ONE > LEG_NRSTR #TODO
+STEP 6. Join Attributes by Location - RAMURI > NODURI - ONE TO MANY > RAMURI_NODURI
+STEP 7. Join Attributes by Location - NOD_NRSTR > BMPnou - ONE TO ONE > LEG_NODURI
+STEP 8. Join Attributes by Location - NOD_NRSTR > Numar_Postal - ONE TO ONE > LEG_NRSTR
     
     > Use qgis:joinattributesbylocation for spatial joins.
     > example:
@@ -167,11 +167,19 @@ class PreProcessDialog(QDialog):
             # 1. Calculate start and end points for each geometry
             try:
                 for layer in self.layers.values():
-                    QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer}", "EnelAssist", level=Qgis.Info)
-                    if layer.name() != "NOD_NRSTR":
+                    QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+                    if layer.name() in ["ReteaJT", "NOD_NRSTR", "pct_vrtx"]:
+                        QgsMessageLog.logMessage(f"Skipping layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+                    elif layer.name() in ["pct_vrtx"]:
+                        QgsMessageLog.logMessage(f"LAYER PCT VRTX IDENTIFIEDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+                        self.calculate_geometry(layer, "POINT_X", "POINT_Y")
+                        step += 1
+                        self.progress_bar.setValue(step)
+                    else:
                         self.calculate_geometry(layer, "POINT_X", "POINT_Y", "POINT_Z", "POINT_M")
                         step += 1
                         self.progress_bar.setValue(step)
+
                 
                 self.calculate_geometry(self.layers["ReteaJT"], None, None, None, None, 'START_X', 'START_Y', 'END_X', 'END_Y')
                 step += 1
@@ -247,7 +255,7 @@ class PreProcessDialog(QDialog):
 
             # 7. Join Attributes by Location - LEG_NODURI
             try:
-                self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['NODURI'], 'LEG_NODURI', 'One-to-One')
+                self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['BMPnou'], 'LEG_NODURI', 'One-to-One')
                 self.update_step(7)  # Mark step 7 as done
                 step += 1
                 self.progress_bar.setValue(step)
@@ -390,21 +398,23 @@ class PreProcessDialog(QDialog):
     # Geometry Calculation for X, Y, Z, and M coords
     def calculate_geometry(self, layer, x=None, y=None, z=None, m=None, start_x=None, start_y=None, end_x=None, end_y=None):
         try:
+            # Collect existing fields in the layer
             existing_fields = [field.name() for field in layer.fields()]
 
             # Determine which fields need to be added based on provided parameters
-            fields_to_add = []
-            for field_name in [x, y, z, m, start_x, start_y, end_x, end_y]:
-                if field_name and field_name not in existing_fields:
-                    fields_to_add.append(QgsField(field_name, QVariant.Double))
+            fields_to_add = [
+                (name, QgsField(name, QVariant.Double))
+                for name in [x, y, z, m, start_x, start_y, end_x, end_y]
+                if name and name not in existing_fields
+            ]
 
             # Add fields if needed
             if fields_to_add:
                 layer.startEditing()
-                layer.dataProvider().addAttributes(fields_to_add)
+                layer.dataProvider().addAttributes([field for _, field in fields_to_add])
                 layer.updateFields()
 
-            # Start editing if not already started
+            # Ensure the layer is editable before making changes
             if not layer.isEditable():
                 layer.startEditing()
 
@@ -413,7 +423,7 @@ class PreProcessDialog(QDialog):
                 'x': QgsExpression('x($geometry)') if x else None,
                 'y': QgsExpression('y($geometry)') if y else None,
                 'z': QgsExpression('z($geometry)') if z else None,
-                'm': QgsExpression('m($geometry)') if m else None,
+                'm': QgsExpression("round(coalesce(m($geometry), 1))") if m else None,
                 'start_x': QgsExpression('x(start_point($geometry))') if start_x else None,
                 'start_y': QgsExpression('y(start_point($geometry))') if start_y else None,
                 'end_x': QgsExpression('x(end_point($geometry))') if end_x else None,
@@ -429,28 +439,35 @@ class PreProcessDialog(QDialog):
                 context.setFeature(feature)
                 updated_values = {}
 
-                # Evaluate expressions and collect the values to update
+                # Evaluate expressions and collect values to update
                 for key, expr in expressions.items():
                     if expr:
                         value = expr.evaluate(context)
-                        if value is not None:
-                            field_name = locals()[key]  # Get the corresponding field name
-                            updated_values[field_name] = value
-                            QgsMessageLog.logMessage(f"Calculated value for field '{field_name}': {value}", "EnelAssist", level=Qgis.Info)
+                        if expr.hasEvalError():
+                            error_message = expr.evalErrorString()
+                            QgsMessageLog.logMessage(f"Error evaluating '{key}' for feature ID {feature.id()}: {error_message}", "GeometryCalc", level=Qgis.Warning)
                         else:
-                            QgsMessageLog.logMessage(f"Error evaluating expression for field '{field_name}'", "EnelAssist", level=Qgis.Warning)
+                            field_name = locals()[key]
+                            updated_values[field_name] = value
+                            QgsMessageLog.logMessage(f"Calculated value for '{field_name}': {value} for feature ID {feature.id()}", "GeometryCalc", level=Qgis.Info)
 
                 # Update feature attributes in bulk
-                for field_name, value in updated_values.items():
-                    if value is not None:
-                        layer.changeAttributeValue(feature.id(), layer.fields().indexOf(field_name), value)
+                if updated_values:
+                    layer.dataProvider().changeAttributeValues({
+                        feature.id(): {
+                            layer.fields().indexFromName(field): value
+                            for field, value in updated_values.items()
+                        }
+                    })
 
             # Commit the changes to the layer
             layer.commitChanges()
+            QgsMessageLog.logMessage("Geometry calculation and updates completed successfully.", "GeometryCalc", level=Qgis.Info)
 
         except Exception as e:
-            QgsMessageLog.logMessage(f"Error in calculate_geometry for layer {layer.name()}: {e}", "EnelAssist", level=Qgis.Critical)
-            logging.error(f"Error in calculate_geometry for layer {layer.name()}: {e}")
+            QgsMessageLog.logMessage(f"Error in calculate_geometry: {str(e)}", "GeometryCalc", level=Qgis.Critical)
+            layer.rollBack()
+
 
 
     # Add 'lungime' and 'id' fields

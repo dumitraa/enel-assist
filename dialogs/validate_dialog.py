@@ -91,7 +91,7 @@ class ShpProcessor:
             QgsMessageLog.logMessage(f"Validating parser", "EnelAssist", 0)
             invalids = parser.validate()
             self.invalid_elements.append(invalids)
-            QgsMessageLog.logMessage(f"Validation completed for parser. Found {len(invalids)} invalid elements, {invalids}", "EnelAssist", 0)
+            # QgsMessageLog.logMessage(f"Validation completed for parser. Found {len(invalids)} invalid elements, {invalids}", "EnelAssist", 0)
         QgsMessageLog.logMessage("Finished validating all SHP layers", "EnelAssist", 0)
 
 class ValidateDialog(QDialog):
@@ -127,7 +127,7 @@ class ValidateDialog(QDialog):
         '''
         Calculate the total number of pages
         '''
-        QgsMessageLog.logMessage("Calculating total pages", "EnelAssist", 0)
+        QgsMessageLog.logMessage("~~~~~~~~~~~~~~~~~~~~~~~ ENTERED Calculating total pages", "EnelAssist", 0)
         self.total_pages = 0
         for idx, parser in enumerate(self.processor.parsers):
             # find how many elements are invalid - invalidelements[idx]["layer_name"]
@@ -136,10 +136,10 @@ class ValidateDialog(QDialog):
                 total_elements.add(element.get('internal_id', ""))
             
             total_element_pages = len(total_elements) // self.EL
+            QgsMessageLog.logMessage(f"********************** CALCULATED TOTAL ELEMENT PAGES: {total_element_pages} //// FROM {len(total_elements)} // EL {self.EL}", "EnelAssist", 0)
             total_element_pages += 1 if len(total_elements) % self.EL else 0
             self.total_pages += total_element_pages
-            QgsMessageLog.logMessage(f"SHP {idx} has {total_element_pages} pages", "EnelAssist", 0)
-        QgsMessageLog.logMessage("Total pages calculated", "EnelAssist", 0)
+            QgsMessageLog.logMessage(f"SHP {idx} has {total_element_pages} pages with {len(total_elements)} elements, which makes the number of elements per page {self.EL}", "EnelAssist", 0)
     
     def setup_styles(self):
         QgsMessageLog.logMessage("Setting up enhanced styles for ValidateDialog", "EnelAssist", 0)
@@ -322,7 +322,7 @@ class ValidateDialog(QDialog):
             return
         else:
             self.invalid_elements_var.setText(f"Elemente invalide pentru SHP {invalid_elements[0].get('layer_name')}")
-            QgsMessageLog.logMessage(f"Invalid elements found for SHP - {invalid_elements}", "EnelAssist", 1)
+            # QgsMessageLog.logMessage(f"Invalid elements found for SHP - {invalid_elements}", "EnelAssist", 1)
 
         # Determine whether to show or hide next/prev buttons
         if len(invalid_elements) > self.EL:

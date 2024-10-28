@@ -35,7 +35,7 @@ class BaseParser:
                 rule = rule_config.get('rule')
                 required = rule_config.get('required', False)
 
-                QgsMessageLog.logMessage(f"Validating field {field} with value {value} and rule {rule}", "EnelAssist", level=Qgis.Info)
+                # QgsMessageLog.logMessage(f"Validating field {field} with value {value} and rule {rule}", "EnelAssist", level=Qgis.Info)
 
                 # Check if the field is required but missing
                 if value is None and required:
@@ -45,17 +45,17 @@ class BaseParser:
                 # Type validation: Check if value is a string
                 if rule == "str" and value is not None and not isinstance(value, str):
                     append_error(obj, field, f"Valoarea '{value}' nu este de tip text", rule)
-                    QgsMessageLog.logMessage(f"Field {field} with value {value} is not of type 'str'", "EnelAssist", level=Qgis.Warning)
+                    # QgsMessageLog.logMessage(f"Field {field} with value {value} is not of type 'str'", "EnelAssist", level=Qgis.Warning)
 
                 # Type validation: Check if value is an integer
                 if rule == "int" and value is not None and not isinstance(value, int):
                     append_error(obj, field, f"Valoarea '{value}' nu este de tip număr întreg", rule)
-                    QgsMessageLog.logMessage(f"Field {field} with value {value} is not of type 'int'", "EnelAssist", level=Qgis.Warning)
+                    # QgsMessageLog.logMessage(f"Field {field} with value {value} is not of type 'int'", "EnelAssist", level=Qgis.Warning)
 
                 # List validation: Check if value is in a list of valid values
                 if isinstance(rule, list) and value is not None and value not in rule:
                     append_error(obj, field, f"Valoarea '{value}' nu este în lista de valori posibile", rule)
-                    QgsMessageLog.logMessage(f"Field {field} with value {value} is not in the list of valid values", "EnelAssist", level=Qgis.Warning)
+                    # QgsMessageLog.logMessage(f"Field {field} with value {value} is not in the list of valid values", "EnelAssist", level=Qgis.Warning)
 
         return self.invalid_elements if self.invalid_elements else []
 
@@ -64,7 +64,7 @@ class BaseParser:
         for obj in self.data:
             QgsMessageLog.logMessage(f"Comparing obj.internal_id with feature_id - {obj.internal_id} == {feature_id}?", "EnelAssist", level=Qgis.Info)
             if obj.internal_id == feature_id:
-                QgsMessageLog.logMessage(f"Found feature {feature_id} in data. Updating field {field} with value {value}", "EnelAssist", level=Qgis.Info)
+                # QgsMessageLog.logMessage(f"Found feature {feature_id} in data. Updating field {field} with value {value}", "EnelAssist", level=Qgis.Info)
                 setattr(obj, field, value)
                 print(f"Value was changed for Feature {feature_id}: {field} - {value}")
                 break
