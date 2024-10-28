@@ -6,8 +6,8 @@ iface = qgis.utils.iface
 from .base_parser import BaseParser
 
 class Auxiliar:
-    def __init__(self, id, friendly_id, denumire, observatii, POINT_X, POINT_Y, POINT_M, ignored=False):
-        self.id = id
+    def __init__(self, internal_id, friendly_id, denumire, observatii, POINT_X, POINT_Y, POINT_M, ignored=False):
+        self.internal_id = internal_id
         self.friendly_id = friendly_id
         self.denumire = denumire
         self.observatii = observatii
@@ -18,7 +18,7 @@ class Auxiliar:
 
     def to_dict(self):
         return {
-            'id': self.id,
+            'internal_id': self.internal_id,
             'friendly_id': self.friendly_id,
             'denumire': self.denumire,
             'observatii': self.observatii,
@@ -30,7 +30,7 @@ class Auxiliar:
 
 class AuxiliarParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
-        super().__init__(layer, "auxiliar")
+        super().__init__(layer, "AUXILIAR")
         
         self.mapping = {  # Attribute table values to friendly names
             'denumire': 'Denumire',
@@ -50,7 +50,7 @@ class AuxiliarParser(BaseParser):
         # Retrieve the layer named "auxiliar" from the current QGIS project
         self.layer = None
         for layer in QgsProject.instance().mapLayers().values():
-            if layer.name().lower() == "auxiliar":
+            if layer.name() == "AUXILIAR":
                 self.layer = layer
                 break
 
@@ -63,7 +63,7 @@ class AuxiliarParser(BaseParser):
     def parse(self):
         for feature in self.layer.getFeatures():
             auxiliar_data = Auxiliar(
-                id=feature.id(),
+                internal_id=feature.id(),
                 friendly_id=feature.id() + 1,
                 denumire=feature['Denumire'] if feature['Denumire'] not in [None, 'NULL', 'nan'] else None,
                 observatii=feature['Observatii'] if feature['Observatii'] not in [None, 'NULL'] else None,

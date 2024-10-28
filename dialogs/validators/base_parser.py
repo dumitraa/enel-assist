@@ -4,7 +4,7 @@ class BaseParser:
     def __init__(self, layer: QgsVectorLayer, layer_name: str):
         self.layer = None
         for l in QgsProject.instance().mapLayers().values():
-            if l.name().lower() == layer_name.lower():
+            if l.name() == layer_name:
                 self.layer = l
                 break
 
@@ -21,7 +21,7 @@ class BaseParser:
             friendly_name = getattr(obj, 'denumire', None) or getattr(obj, 'denumire_a', None) or f"ID {obj.friendly_id}"
             self.invalid_elements.append({
                 'layer_name': self.layer.name(),
-                'id': obj.id,
+                'id': obj.internal_id,
                 'tag': field,
                 'friendly_name': friendly_name,
                 'error': error_msg,
@@ -62,8 +62,8 @@ class BaseParser:
 
     def update_feature(self, feature_id, field, value):
         for obj in self.data:
-            QgsMessageLog.logMessage(f"Comparing obj.id with feature_id - {obj.id} == {feature_id}?", "EnelAssist", level=Qgis.Info)
-            if obj.id == feature_id:
+            QgsMessageLog.logMessage(f"Comparing obj.internal_id with feature_id - {obj.internal_id} == {feature_id}?", "EnelAssist", level=Qgis.Info)
+            if obj.internal_id == feature_id:
                 QgsMessageLog.logMessage(f"Found feature {feature_id} in data. Updating field {field} with value {value}", "EnelAssist", level=Qgis.Info)
                 setattr(obj, field, value)
                 print(f"Value was changed for Feature {feature_id}: {field} - {value}")
@@ -83,10 +83,10 @@ class BaseParser:
         for obj in self.data:
             if obj.ignored:
                 continue
-            feature = self.layer.getFeature(obj.id)
+            feature = self.layer.getFeature(obj.internal_id)
             if feature.isValid():
                 fields = self.layer.fields()
-                QgsMessageLog.logMessage(f"Feature ID {obj.id} found in layer. - {fields}", "EnelAssist", Qgis.Info)
+                QgsMessageLog.logMessage(f"Feature ID {obj.internal_id} found in layer. - {fields}", "EnelAssist", Qgis.Info)
 
                 success = True
                 
@@ -102,13 +102,13 @@ class BaseParser:
 
                     if not self.layer.changeAttributeValue(feature.id(), field_index, new_value):
                         success = False
-                        QgsMessageLog.logMessage(f"Failed to update field '{layer_field}' for feature ID {obj.id}.", "EnelAssist", Qgis.Warning)
+                        QgsMessageLog.logMessage(f"Failed to update field '{layer_field}' for feature ID {obj.internal_id}.", "EnelAssist", Qgis.Warning)
                     else:
-                        QgsMessageLog.logMessage(f"Feature ID {obj.id}: Field '{layer_field}' updated successfully.", "EnelAssist", Qgis.Info)
+                        QgsMessageLog.logMessage(f"Feature ID {obj.internal_id}: Field '{layer_field}' updated successfully.", "EnelAssist", Qgis.Info)
 
 
                 if not success:
-                    QgsMessageLog.logMessage(f"Some attributes could not be updated for feature ID {obj.id}. Rolling back changes.", "EnelAssist", Qgis.Warning)
+                    QgsMessageLog.logMessage(f"Some attributes could not be updated for feature ID {obj.internal_id}. Rolling back changes.", "EnelAssist", Qgis.Warning)
                     self.layer.rollBack()
                     return
 

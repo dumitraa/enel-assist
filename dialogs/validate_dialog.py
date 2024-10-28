@@ -7,6 +7,17 @@ from PyQt5.QtCore import Qt
 
 
 from .validators.auxiliar import AuxiliarParser
+from .validators.bmp import BMPParser
+from .validators.cd import CdParser
+from .validators.inc_lini import IncLiniParser
+from .validators.deriv_ct import DerivCTParser
+from .validators.leg_noduri import LegNoduriParser
+from .validators.ramuri_noduri import RamuriNoduriParser
+from .validators.nr_str import NrStrParser
+from .validators.leg_nrstr import LegNrstrParser
+
+
+
 
 class ShpProcessor:
     '''
@@ -36,13 +47,30 @@ class ShpProcessor:
             if not isinstance(layer, QgsVectorLayer):
                 continue
             
-            layer_name = layer.name().lower()
+            layer_name = layer.name()
+            # parse layers accordinging - AUXILIAR, Cutii (CD), InceputLinie, LEG_NODURI, LEG_NRSTR, Numar_Postal, RAMURI_NODURI, BMPnou, Stalpi (DerivCt)
             
-            if layer_name == "auxiliar":
+            if layer_name == "AUXILIAR":
                 parser = AuxiliarParser(layer)
+            elif layer_name == "BMPnou":
+                parser = BMPParser(layer)
+            elif layer_name == "Cutii":
+                parser = CdParser(layer)
+            elif layer_name == "InceputLinie":
+                parser = IncLiniParser(layer)
+            elif layer_name == "Stalpi":
+                parser = DerivCTParser(layer)
+            elif layer_name == "LEG_NODURI":
+                parser = LegNoduriParser(layer)
+            elif layer_name == "RAMURI_NODURI":
+                parser = RamuriNoduriParser(layer)
+            elif layer_name == "LEG_NRSTR":
+                parser = LegNrstrParser(layer)
+            elif layer_name == "Numar_Postal":
+                parser = NrStrParser(layer)
             else:
-                QgsMessageLog.logMessage(f"No parser available for {layer_name}", "EnelAssist", 1)
-                continue
+                QgsMessageLog.logMessage(f"Layer {layer_name} not recognized. Skipping...", "EnelAssist", 1)
+                
             
             parser.parse()
             self.parsers.append(parser)
@@ -105,7 +133,7 @@ class ValidateDialog(QDialog):
             # find how many elements are invalid - invalidelements[idx]["layer_name"]
             total_elements = set()
             for element in self.processor.invalid_elements[idx]:
-                total_elements.add(element.get('id', ""))
+                total_elements.add(element.get('internal_id', ""))
             
             total_element_pages = len(total_elements) // self.EL
             total_element_pages += 1 if len(total_elements) % self.EL else 0
@@ -312,7 +340,7 @@ class ValidateDialog(QDialog):
         last_element_id = None
         
         for element in invalid_elements:
-            element_id = element.get('id', "")
+            element_id = element.get('internal_id', "")
             if element_id != last_element_id:
                 if current_group:
                     grouped_elements.append(current_group)
@@ -356,7 +384,7 @@ class ValidateDialog(QDialog):
                 error = element.get('error')
                 suggestions = element.get('suggestions', [])
                 ignored = element.get('ignored', "")
-                element_id = element.get('id', "")
+                element_id = element.get('internal_id', "")
                 current_value = element.get('current_value', "")
 
                 # Horizontal Layout for each row
@@ -439,7 +467,7 @@ class ValidateDialog(QDialog):
 
         for element in current_elements:
             tag = element.get('tag', "") 
-            element_id = element.get('id', "")
+            element_id = element.get('internal_id', "")
 
             # Handle 'ignore' checkbox
             if (element_id, tag, 'ignore') in self.widget_dict:
@@ -478,7 +506,7 @@ class ValidateDialog(QDialog):
                     if element.get('ignored', "") == "ignored":
                         continue
                 
-                    element_id = element.get('id', "")
+                    element_id = element.get('internal_id', "")
                     tag = element.get('tag')
                     current_value = element.get('current_value', None)
                     

@@ -154,8 +154,7 @@ class PreProcessDialog(QDialog):
                 return
             
             # Update progress bar
-            layers_count = len(self.layers)
-            total_steps = 13  # Total number of processing steps
+            total_steps = 13  + len(self.layers) # Total number of processing steps
             self.progress_bar.setMaximum(total_steps)
             step = 0
             self.base_dir = QFileDialog.getExistingDirectory(None, "Select Folder")
@@ -168,19 +167,13 @@ class PreProcessDialog(QDialog):
             # 1. Calculate start and end points for each geometry
             try:
                 for layer in self.layers.values():
-                    self.calculate_geometry(layer, 'POINT_X', 'POINT_Y', None, None, None, None)
-                    step += 1
-                    self.progress_bar.setValue(step)
-                self.update_step(0)  # Mark step 1 as done
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error calculating geometry for layerZ POINT X POINT Y: {e}", "EnelAssist", level=Qgis.Critical)
-                logging.error(f"Error calculating geometry for layers: {e}")
-                return
-
-            try:
-                # QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
-                # logging.info(f"Calculating geometry for layer: {layer.name()}")
-                self.calculate_geometry(self.layers["ReteaJT"], None, None, 'START_X', 'START_Y', 'END_X', 'END_Y')
+                    QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer}", "EnelAssist", level=Qgis.Info)
+                    if layer.name() != "NOD_NRSTR":
+                        self.calculate_geometry(layer, "POINT_X", "POINT_Y", "POINT_Z", "POINT_M")
+                        step += 1
+                        self.progress_bar.setValue(step)
+                
+                self.calculate_geometry(self.layers["ReteaJT"], None, None, None, None, 'START_X', 'START_Y', 'END_X', 'END_Y')
                 step += 1
                 self.progress_bar.setValue(step)
                 self.update_step(1)  # Mark step 1 as done
@@ -191,7 +184,7 @@ class PreProcessDialog(QDialog):
 
             # 2. Add 'lungime' and 'id' columns to ReteaJT and calculate geometry length
             try:
-                self.add_length_and_id(self.layers['ReteaJT'], 'lungime', 'id')
+                self.add_length_and_id(self.layers['ReteaJT'], 'lungime_', 'id_')
                 self.update_step(2)  # Mark step 2 as done
                 step += 1
                 self.progress_bar.setValue(step)
@@ -361,9 +354,6 @@ class PreProcessDialog(QDialog):
 
         # Iterate through the actual layer objects
         for layer in qgis_layers:
-            # Log each layer name for debugging
-            QgsMessageLog.logMessage(f"Checking layer: {layer.name()}-- layer is - {layer} with type - {type(layer)}", "EnelAssist", level=Qgis.Info)
-
             # If the layer name matches one in the predefined list, add it to the dictionary
             if layer.name() in layer_names:
                 layers[layer.name()] = layer
@@ -397,67 +387,63 @@ class PreProcessDialog(QDialog):
             logging.error(f"Error adding layer to project: {e}")
 
 
-
-
-    # Geometry Calculation for X, Y coords
-    def calculate_geometry(self, layer, x=None, y=None, start_x=None, start_y=None, end_x=None, end_y=None):
+    # Geometry Calculation for X, Y, Z, and M coords
+    def calculate_geometry(self, layer, x=None, y=None, z=None, m=None, start_x=None, start_y=None, end_x=None, end_y=None):
         try:
             existing_fields = [field.name() for field in layer.fields()]
-            
+
             # Determine which fields need to be added based on provided parameters
             fields_to_add = []
-            if x and x not in existing_fields:
-                fields_to_add.append(QgsField(x, QVariant.Double))
-            if y and y not in existing_fields:
-                fields_to_add.append(QgsField(y, QVariant.Double))
-            if start_x and start_x not in existing_fields:
-                fields_to_add.append(QgsField(start_x, QVariant.Double))
-            if start_y and start_y not in existing_fields:
-                fields_to_add.append(QgsField(start_y, QVariant.Double))
-            if end_x and end_x not in existing_fields:
-                fields_to_add.append(QgsField(end_x, QVariant.Double))
-            if end_y and end_y not in existing_fields:
-                fields_to_add.append(QgsField(end_y, QVariant.Double))
+            for field_name in [x, y, z, m, start_x, start_y, end_x, end_y]:
+                if field_name and field_name not in existing_fields:
+                    fields_to_add.append(QgsField(field_name, QVariant.Double))
 
-            # If no new fields are needed, skip geometry calculation
-            if not fields_to_add:
-                QgsMessageLog.logMessage(f"No new fields to add for layer: {layer.name()}. Skipping geometry calculation.", "EnelAssist", level=Qgis.Info)
-                return
+            # Add fields if needed
+            if fields_to_add:
+                layer.startEditing()
+                layer.dataProvider().addAttributes(fields_to_add)
+                layer.updateFields()
 
-            # Add new fields and set layer to editing mode
-            layer.startEditing()
-            layer.dataProvider().addAttributes(fields_to_add)
-            layer.updateFields()
+            # Start editing if not already started
+            if not layer.isEditable():
+                layer.startEditing()
+
+            # Prepare expressions
+            expressions = {
+                'x': QgsExpression('x($geometry)') if x else None,
+                'y': QgsExpression('y($geometry)') if y else None,
+                'z': QgsExpression('z($geometry)') if z else None,
+                'm': QgsExpression('m($geometry)') if m else None,
+                'start_x': QgsExpression('x(start_point($geometry))') if start_x else None,
+                'start_y': QgsExpression('y(start_point($geometry))') if start_y else None,
+                'end_x': QgsExpression('x(end_point($geometry))') if end_x else None,
+                'end_y': QgsExpression('y(end_point($geometry))') if end_y else None
+            }
 
             # Set up the context for expressions
             context = QgsExpressionContext()
             context.appendScopes(QgsExpressionContextUtils.globalProjectLayerScopes(layer))
 
-            # Expression setup for either POINT_X/Y or START/END points
-            if x and y:
-                x_expr = QgsExpression('x($geometry)')
-                y_expr = QgsExpression('y($geometry)')
-                
-                for feature in layer.getFeatures():
-                    context.setFeature(feature)
-                    x_value = x_expr.evaluate(context)
-                    y_value = y_expr.evaluate(context)
-                    
-                    layer.changeAttributeValue(feature.id(), layer.fields().indexOf(x), x_value)
-                    layer.changeAttributeValue(feature.id(), layer.fields().indexOf(y), y_value)
+            # Iterate over features and calculate values
+            for feature in layer.getFeatures():
+                context.setFeature(feature)
+                updated_values = {}
 
-            elif start_x and start_y and end_x and end_y:
-                start_x_expr = QgsExpression('x(start_point($geometry))')
-                start_y_expr = QgsExpression('y(start_point($geometry))')
-                end_x_expr = QgsExpression('x(end_point($geometry))')
-                end_y_expr = QgsExpression('y(end_point($geometry))')
+                # Evaluate expressions and collect the values to update
+                for key, expr in expressions.items():
+                    if expr:
+                        value = expr.evaluate(context)
+                        if value is not None:
+                            field_name = locals()[key]  # Get the corresponding field name
+                            updated_values[field_name] = value
+                            QgsMessageLog.logMessage(f"Calculated value for field '{field_name}': {value}", "EnelAssist", level=Qgis.Info)
+                        else:
+                            QgsMessageLog.logMessage(f"Error evaluating expression for field '{field_name}'", "EnelAssist", level=Qgis.Warning)
 
-                for feature in layer.getFeatures():
-                    context.setFeature(feature)
-                    layer.changeAttributeValue(feature.id(), layer.fields().indexOf(start_x), start_x_expr.evaluate(context))
-                    layer.changeAttributeValue(feature.id(), layer.fields().indexOf(start_y), start_y_expr.evaluate(context))
-                    layer.changeAttributeValue(feature.id(), layer.fields().indexOf(end_x), end_x_expr.evaluate(context))
-                    layer.changeAttributeValue(feature.id(), layer.fields().indexOf(end_y), end_y_expr.evaluate(context))
+                # Update feature attributes in bulk
+                for field_name, value in updated_values.items():
+                    if value is not None:
+                        layer.changeAttributeValue(feature.id(), layer.fields().indexOf(field_name), value)
 
             # Commit the changes to the layer
             layer.commitChanges()

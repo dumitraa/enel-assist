@@ -72,7 +72,7 @@ class GenerateExcelDialog(QDialog):
         
         # Search for the layer by name (case-insensitive)
         for layer in all_layers:
-            if layer.name().lower() == name.lower():
+            if layer.name() == name:
                 return layer
         return None
 
