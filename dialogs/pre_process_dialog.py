@@ -154,7 +154,7 @@ class PreProcessDialog(QDialog):
                 return
             
             # Update progress bar
-            total_steps = 13  + len(self.layers) # Total number of processing steps
+            total_steps = 13  + len(self.layers) - 2 # Total number of processing steps
             self.progress_bar.setMaximum(total_steps)
             step = 0
             self.base_dir = QFileDialog.getExistingDirectory(None, "Select Folder")
@@ -168,10 +168,10 @@ class PreProcessDialog(QDialog):
             try:
                 for layer in self.layers.values():
                     QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
-                    if layer.name() in ["ReteaJT", "NOD_NRSTR", "pct_vrtx"]:
+                    if layer.name() in ["ReteaJT", "NOD_NRSTR"]:
                         QgsMessageLog.logMessage(f"Skipping layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
                     elif layer.name() in ["pct_vrtx"]:
-                        QgsMessageLog.logMessage(f"LAYER PCT VRTX IDENTIFIEDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+                        QgsMessageLog.logMessage(f"--------------------------LAYER PCT VRTX IDENTIFIEDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
                         self.calculate_geometry(layer, "POINT_X", "POINT_Y")
                         step += 1
                         self.progress_bar.setValue(step)
@@ -449,7 +449,7 @@ class PreProcessDialog(QDialog):
                         else:
                             field_name = locals()[key]
                             updated_values[field_name] = value
-                            QgsMessageLog.logMessage(f"Calculated value for '{field_name}': {value} for feature ID {feature.id()}", "GeometryCalc", level=Qgis.Info)
+                            # QgsMessageLog.logMessage(f"Calculated value for '{field_name}': {value} for feature ID {feature.id()}", "GeometryCalc", level=Qgis.Info)
 
                 # Update feature attributes in bulk
                 if updated_values:
