@@ -44,19 +44,7 @@ class IncLiniParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
         super().__init__(layer, "InceputLinie")
         
-        self.mapping = {  # Attribute table values to friendly names
-            'denumire': 'Denumire',
-            'stare_cone': 'StareConex',
-            'cod_societ': 'cod_societ',
-            'cod_zona': 'cod_zona',
-            'nr_nod': 'nr_nod',
-            'serie_nod': 'serie_nod',
-            'observatii': None,
-            'POINT_X': 'POINT_X',
-            'POINT_Y': 'POINT_Y',
-            'POINT_Z': 'POINT_Z',
-            'POINT_M': 'POINT_M'
-        }
+        self.column_names = ['denumire', 'stare_cone', 'cod_societ', 'cod_zona', 'nr_nod', 'serie_nod', 'observatii', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
 
         self.validation_rules: Dict[str, Any] = {
             "denumire": {
@@ -126,3 +114,6 @@ class IncLiniParser(BaseParser):
 
     def get_inclini_data(self):
         return self.inclini_data
+    
+    def get_name(self):
+        return "INC_LINI"

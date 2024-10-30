@@ -39,18 +39,7 @@ class NrStrParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
         super().__init__(layer, "Numar_Postal")
         
-        self.mapping = {
-            'nr_strada': 'NrStr',
-            'denumire_a': 'DenumireAr',
-            'tip_artera': 'TipArtera',
-            'progresiv_': 'ProgresivC',
-            'denumire_c': 'DenumireCl',
-            'cod_strada': 'cod_strada',
-            'POINT_X': 'POINT_X',
-            'POINT_Y': 'POINT_Y',
-            'POINT_Z': 'POINT_Z',
-            'POINT_M': 'POINT_M'
-        }
+        self.column_names = ['nr_strada', 'denumire_a', 'tip_artera', 'progresiv_', 'denumire_c', 'cod_strada', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
 
         self.validation_rules: Dict[str, Any] = {
             'nr_strada': {
@@ -106,3 +95,6 @@ class NrStrParser(BaseParser):
 
     def get_nrstr_data(self):
         return self.nrstr_data
+
+    def get_name(self):
+        return "NR_STR"

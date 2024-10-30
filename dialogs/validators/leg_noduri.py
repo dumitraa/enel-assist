@@ -6,7 +6,9 @@ iface = qgis.utils.iface
 from .base_parser import BaseParser
 
 class LegNod:
-    def __init__(self, internal_id, friendly_id, denumire, stare_cone, cod_societ, cod_zona, nr_nod, serie_nod, POINT_X, POINT_Y, POINT_Z, POINT_M, ignored=False):
+    def __init__(self, Join_Count, ID, internal_id, friendly_id, denumire, stare_cone, cod_societ, cod_zona, nr_nod, serie_nod, POINT_X, POINT_Y, POINT_Z, POINT_M, ignored=False):
+        self.Join_Count = Join_Count
+        self.ID = ID
         self.internal_id = internal_id
         self.friendly_id = friendly_id
         self.denumire = denumire
@@ -23,6 +25,8 @@ class LegNod:
 
     def to_dict(self):
         return {
+            'Join_Count': self.Join_Count,
+            "ID": self.ID,
             'internal_id': self.internal_id,
             'friendly_id': self.friendly_id,
             'denumire': self.denumire,
@@ -42,20 +46,7 @@ class LegNoduriParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
         super().__init__(layer, "LEG_NODURI")
         
-        self.mapping = {
-            'Join_Count': 'Join_Count',
-            'internal_id': None,
-            'denumire': 'Denumire',
-            'stare_cone': 'StareConex',
-            'cod_societ': 'cod_societ',
-            'cod_zona': 'cod_zona',
-            'nr_nod': 'nr_nod',
-            'serie_nod': 'serie_nod',
-            'POINT_X': 'POINT_X',
-            'POINT_Y': 'POINT_Y',
-            'POINT_Z': 'POINT_Z',
-            'POINT_M': 'POINT_M'
-        }
+        self.column_names = ['Join_Count', 'ID', 'denumire', 'stare_cone', 'cod_societ', 'cod_zona', 'nr_nod', 'serie_nod', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
 
         self.validation_rules: Dict[str, Any] = {
             "denumire": {
@@ -92,8 +83,10 @@ class LegNoduriParser(BaseParser):
     def parse(self):
         for feature in self.layer.getFeatures():
             leg_nod_data = LegNod(
+                Join_Count=1,
                 internal_id=feature.id(),
                 friendly_id=feature.id() + 1,
+                ID=feature.id() + 2,
                 denumire=feature['Denumire'] if feature['Denumire'] not in [None, 'NULL', 'nan'] else None,
                 stare_cone=feature['StareConex'] if feature['StareConex'] not in [None, 'NULL', 'nan'] else None,
                 cod_societ=feature['cod_societ'] if feature['cod_societ'] not in [None, 'NULL', 'nan'] else None,
@@ -112,3 +105,6 @@ class LegNoduriParser(BaseParser):
 
     def get_leg_noduri_data(self) -> List[LegNod]:
         return self.leg_noduri_data
+    
+    def get_name(self) -> str:
+        return "LEG_NODURI"

@@ -32,13 +32,7 @@ class AuxiliarParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
         super().__init__(layer, "AUXILIAR")
         
-        self.mapping = {  # Attribute table values to friendly names
-            'denumire': 'Denumire',
-            'observatii': 'Observatii',
-            'POINT_X': 'POINT_X',
-            'POINT_Y': 'POINT_Y',
-            'POINT_M': 'POINT_M'
-        }
+        self.column_names = ['denumire', 'observatii', 'POINT_X', 'POINT_Y', 'POINT_M']
 
         self.validation_rules: Dict[str, Any] = {
             "denumire": {
@@ -66,7 +60,7 @@ class AuxiliarParser(BaseParser):
                 internal_id=feature.id(),
                 friendly_id=feature.id() + 1,
                 denumire=feature['Denumire'] if feature['Denumire'] not in [None, 'NULL', 'nan'] else None,
-                observatii=feature['Observatii'] if feature['Observatii'] not in [None, 'NULL'] else None,
+                observatii=feature['Observatii'] if feature['Observatii'] not in [None, 'NULL', 'nan'] else None,
                 POINT_X=feature['POINT_X'] if feature['POINT_X'] not in [None, 'NULL', 'nan'] else None,
                 POINT_Y=feature['POINT_Y'] if feature['POINT_Y'] not in [None, 'NULL', 'nan'] else None,
                 POINT_M=feature['POINT_M'] if feature['POINT_M'] not in [None, 'NULL', 'nan'] else None
@@ -78,5 +72,8 @@ class AuxiliarParser(BaseParser):
 
     def get_auxiliare_data(self):
         return self.auxiliare_data
+    
+    def get_name(self):
+        return "AUXILIAR"
 
 

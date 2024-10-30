@@ -50,22 +50,7 @@ class BMPParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
         super().__init__(layer, "BMPnou")
         
-        self.mapping = {  # Attribute table values to friendly names
-            'denumire': 'Denumire',
-            'serie_cont': 'SerieConto',
-            'stare_cone': 'StareConex',
-            'serie_con2': 'SerieCon_1',
-            'serie_con3': 'SerieCon_2',
-            'serie_con4': 'SerieCon_3',
-            'serie_con5': 'serie_con5',
-            'cod_societ': 'cod_societ',
-            'cod_zona': 'cod_zona',
-            'nr_nod': 'nr_nod',
-            'serie_nod': 'serie_nod',
-            'POINT_X': 'POINT_X',
-            'POINT_Y': 'POINT_Y',
-            'POINT_M': 'POINT_M'
-        }
+        self.column_names = ['denumire', 'serie_cont', 'serie_con2', 'serie_con3', 'serie_con4', 'serie_con5', 'stare_cone', 'cod_societ', 'cod_zona', 'nr_nod', 'serie_nod', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
 
         self.validation_rules: Dict[str, Any] = {
             "denumire": {
@@ -126,3 +111,6 @@ class BMPParser(BaseParser):
 
     def get_bmp_data(self):
         return self.bmp_data
+    
+    def get_name(self):
+        return "BMPnou"

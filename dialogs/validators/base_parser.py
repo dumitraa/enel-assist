@@ -1,4 +1,7 @@
 from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis
+import os
+import pandas as pd
+import traceback
 
 class BaseParser:
     def __init__(self, layer: QgsVectorLayer, layer_name: str):
@@ -116,3 +119,56 @@ class BaseParser:
             QgsMessageLog.logMessage("Failed to commit changes to the layer.", "EnelAssist", Qgis.Warning)
         else:
             QgsMessageLog.logMessage("Changes successfully committed to the layer.", "EnelAssist", Qgis.Info)
+        
+
+    def export_to_excel(self, output_dir, filename):
+        try:
+            QgsMessageLog.logMessage("Starting export to Excel...", "EnelAssist", level=Qgis.Info)
+
+            # Step 1: Validate data
+            if not self.data:
+                raise ValueError("No data to export.")
+            if not filename:
+                raise ValueError("Filename not provided.")
+            
+            # Step 2: Ensure output directory exists
+            if not os.path.exists(output_dir):
+                try:
+                    os.makedirs(output_dir)
+                    QgsMessageLog.logMessage(f"Created output directory: {output_dir}", "EnelAssist", level=Qgis.Info)
+                except Exception as e:
+                    raise OSError(f"Failed to create output directory '{output_dir}': {e}")
+
+            # Step 3: Create DataFrame
+            try:
+                df = pd.DataFrame([
+                    {key: getattr(obj, key) for key in self.column_names}
+                    for obj in self.data
+                ])
+                QgsMessageLog.logMessage(f"DataFrame created successfully with columns: {self.column_names}", "EnelAssist", level=Qgis.Info)
+            except Exception as e:
+                raise ValueError(f"Failed to create DataFrame: {e}")
+
+            # Step 4: Check DataFrame integrity
+            if df.empty:
+                QgsMessageLog.logMessage("Warning: DataFrame is empty. No data will be exported.", "EnelAssist", level=Qgis.Warning)
+
+            # Fill NaN values if necessary
+            df.fillna("", inplace=True)
+
+            # Step 5: Define output path for Excel file
+            output_path = os.path.join(output_dir, f"{filename}.xlsx")
+            QgsMessageLog.logMessage(f"Exporting data to {output_path}...", "EnelAssist", level=Qgis.Info)
+
+            # Step 6: Export DataFrame to Excel using openpyxl engine
+            try:
+                df.to_excel(output_path, index=False, engine='openpyxl')
+                QgsMessageLog.logMessage(f"Data successfully exported to {output_path}", "EnelAssist", level=Qgis.Info)
+            except Exception as e:
+                raise RuntimeError(f"Failed to write to Excel file '{output_path}': {e}")
+
+        except Exception as e:
+            # Log the detailed error and stack trace for debugging
+            error_message = f"An error occurred during the export to Excel: {str(e)}\n{traceback.format_exc()}"
+            QgsMessageLog.logMessage(error_message, "EnelAssist", level=Qgis.Critical)
+

@@ -1,18 +1,20 @@
 import qgis
 from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis
 from typing import Dict, Any, List
+import re
 iface = qgis.utils.iface
 
 from .base_parser import BaseParser
 
 class RamuriNoduri:
-    def __init__(self, internal_id, material, CIR, cod_materi, Pozare, id, lungime, denumire, stare_cone, cod_societ, cod_zona, nr_nod, serie_nod, POINT_X, POINT_Y, POINT_Z, POINT_M):
+    def __init__(self, Join_Count, internal_id, material, CIR, cod_materi, Pozare, ID, lungime, denumire, stare_cone, cod_societ, cod_zona, nr_nod, serie_nod, POINT_X, POINT_Y, POINT_Z, POINT_M):
+        self.Join_Count = Join_Count
         self.internal_id = internal_id
         self.material = material
         self.CIR = CIR
         self.cod_materi = cod_materi
         self.Pozare = Pozare
-        self.id = id
+        self.ID = ID
         self.lungime = lungime
         self.denumire = denumire
         self.stare_cone = stare_cone
@@ -27,12 +29,13 @@ class RamuriNoduri:
 
     def to_dict(self):
         return {
+            'Join_Count': self.Join_Count,
             'internal_id': self.internal_id,
             'material': self.material,
             'CIR': self.CIR,
             'cod_materi': self.cod_materi,
             'Pozare': self.Pozare,
-            'id': self.id,
+            'ID': self.ID,
             'lungime_': self.lungime,
             'denumire': self.denumire,
             'stare_cone': self.stare_cone,
@@ -50,24 +53,7 @@ class RamuriNoduriParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
         super().__init__(layer, "RAMURI_NODURI")
         
-        self.mapping = {
-            'material': 'Material',
-            'CIR': 'CIR',
-            'cod_materi': 'Material',
-            'Pozare': 'Material',
-            'ID': 'id_',
-            'lungime': 'lungime_',
-            'denumire': 'Denumire',
-            'stare_cone': 'StareConex',
-            'cod_societ': 'cod_societ',
-            'cod_zona': 'cod_zona',
-            'nr_nod': 'nr_nod',
-            'serie_nod': 'serie_nod',
-            'POINT_X': 'POINT_X',
-            'POINT_Y': 'POINT_Y',
-            'POINT_Z': 'POINT_Z',
-            'POINT_M': 'POINT_M'
-        }
+        self.column_names = ['Join_Count', 'material', 'CIR', 'cod_materi', 'Pozare', 'ID', 'lungime', 'denumire', 'stare_cone', 'cod_societ', 'cod_zona', 'nr_nod', 'serie_nod', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
 
         self.validation_rules: Dict[str, Any] = {
             'material': {
@@ -135,14 +121,20 @@ class RamuriNoduriParser(BaseParser):
 
     def parse(self):
         for feature in self.layer.getFeatures():
+            if feature['Material']:
+                cod_material = re.search(r'[A-Z](\d+)', feature['Material']).group(1)
+            else:
+                cod_material = None
+            
             ramura_nod = RamuriNoduri(
+                Join_Count=1,
                 internal_id=feature.id(),
                 material=feature['Material'] if feature['Material'] not in [None, 'NULL', 'nan'] else None,
                 CIR=feature['CIR'] if feature['CIR'] not in [None, 'NULL', 'nan'] else None,
-                cod_materi=feature['Material'] if feature['Material'] not in [None, 'NULL', 'nan'] else None,
+                cod_materi = cod_material,
                 Pozare=feature['Material'][0] if feature['Material'] not in [None, 'NULL', 'nan'] else None,
-                id=feature['id_'],
-                lungime=feature['lungime_'],
+                ID=feature['id_'],
+                lungime=round(feature['lungime_']),
                 denumire=feature['Denumire'] if feature['Denumire'] not in [None, 'NULL', 'nan'] else None,
                 stare_cone=feature['StareConex'] if feature['StareConex'] not in [None, 'NULL', 'nan'] else None,
                 cod_societ=feature['cod_societ'] if feature['cod_societ'] not in [None, 'NULL', 'nan'] else None,
@@ -161,3 +153,6 @@ class RamuriNoduriParser(BaseParser):
 
     def get_ramuri_data(self):
         return self.ramuri_data
+    
+    def get_name(self):
+        return "RAMURI_NODURI"

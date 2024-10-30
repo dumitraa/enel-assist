@@ -1,7 +1,9 @@
 import os
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QProgressBar, QPushButton, QFileDialog, QMessageBox
-from qgis.core import QgsProject
+from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis
 import pandas as pd
+
+from .validate_dialog import ShpProcessor
 
 class GenerateExcelDialog(QDialog):
     
@@ -20,72 +22,25 @@ class GenerateExcelDialog(QDialog):
         self.setLayout(self.layout)
 
     def __exec__(self):
-        # Dictionary mapping shapefile names (case-insensitive) to desired Excel file names
-        layer_mapping = {
-            'auxiliar': 'AUXILIAR',
-            'bmpnou': 'BMP',
-            'cutii': 'CD',
-            'stalpi': 'DERIV_CT',
-            'inc_linii': 'INC_LINI',
-            'leg_noduri': 'LEG_NODURI',
-            'leg_nrstr': 'LEG_NRSTR',
-            'numar_postal': 'NR_STR',
-            'ramuri_noduri': 'RAMURI_NODURI'
-        }
+        self.process_data()
         
         # Directory prompt for saving Excel files
         output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
         if not output_dir:
             return  # If user cancels, do nothing
 
-        total_steps = len(layer_mapping)
-        self.progress_bar.setMaximum(total_steps)
-        step = 0
-
-        # Iterate through the layer mappings and export the tables
-        for layer_name, excel_name in layer_mapping.items():
-            layer = self.get_layer_by_name(layer_name)
-            
-            if layer:
-                try:
-                    # Export to Excel
-                    self.export_layer_to_excel(layer, os.path.join(output_dir, f'{excel_name}.xlsx'))
-                    step += 1
-                    self.progress_bar.setValue(step)
-                except Exception as e:
-                    # Show an error message if there’s an issue with export
-                    QMessageBox.critical(self, "Error", f"Failed to export {layer_name} to {excel_name}.xlsx: {str(e)}")
-            else:
-                # Show an error message if the layer doesn't exist
-                QMessageBox.warning(self, "Layer Missing", f"Layer '{layer_name}' not found!")
-                continue
+        for parser in self.processor.parsers:
+            parser.export_to_excel(output_dir, parser.get_name())
 
         # Notify user when all exports are complete
         QMessageBox.information(self, "Complete", "Excel file generation completed!")
 
-    def get_layer_by_name(self, name):
-        """
-        Helper function to retrieve a layer by name in a case-insensitive manner.
-        """
-        # Get all layers in the current project
-        all_layers = QgsProject.instance().mapLayers().values()
+                
+    def process_data(self):
+        QgsMessageLog.logMessage("Processing data...", "EnelAssist", level=Qgis.Info)
+        source_paths = [layer.source() for layer in QgsProject.instance().mapLayers().values() if isinstance(layer, QgsVectorLayer)]
+        if not source_paths:
+            QgsMessageLog.logMessage("No vector layers found in the project.", "EnelAssist", level=Qgis.Warning)
+            return
         
-        # Search for the layer by name (case-insensitive)
-        for layer in all_layers:
-            if layer.name() == name:
-                return layer
-        return None
-
-    def export_layer_to_excel(self, layer, output_path):
-        """
-        Helper function to export the attribute table of a layer to an Excel file.
-        """
-        # Get the fields and features (attributes) from the layer
-        field_names = [field.name() for field in layer.fields()]
-        features = [feat.attributes() for feat in layer.getFeatures()]
-
-        # Create a DataFrame using the fields and features
-        df = pd.DataFrame(features, columns=field_names)
-        
-        # Export to Excel using pandas
-        df.to_excel(output_path, index=False)
+        self.processor = ShpProcessor(source_paths)

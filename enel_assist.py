@@ -256,7 +256,6 @@ class EnelAssist:
         """
         QgsMessageLog.logMessage("Entering validate...", "EnelAssist", level=Qgis.Info)
         ValidateDialog().exec_()
-        pass
     
     
     def generate_excel(self):
@@ -272,6 +271,7 @@ class EnelAssist:
         - ramuri_noduri > RAMURI_NODURI
         """
         QgsMessageLog.logMessage("Entering generate excel...", "EnelAssist", level=Qgis.Info)
+        GenerateExcelDialog().exec_()
         pass
     
 

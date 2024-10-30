@@ -3,7 +3,7 @@ from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis
 from .base_parser import BaseParser
 
 class DerivCT:
-    def __init__(self, internal_id, friendly_id, denumire, serie_cone, cod_societ, cod_zona, nr_nod, serie_nod, POINT_X, POINT_Y, POINT_Z, POINT_M, ignored=False):
+    def __init__(self, internal_id, friendly_id, denumire, serie_cone, cod_societ, cod_zona, nr_nod, serie_nod, observatii, POINT_X, POINT_Y, POINT_Z, POINT_M, ignored=False):
         self.internal_id = internal_id
         self.friendly_id = friendly_id
         self.denumire = denumire
@@ -12,6 +12,7 @@ class DerivCT:
         self.cod_zona = cod_zona
         self.nr_nod = nr_nod
         self.serie_nod = serie_nod
+        self.observatii = observatii
         self.POINT_X = POINT_X
         self.POINT_Y = POINT_Y
         self.POINT_Z = POINT_Z
@@ -28,6 +29,7 @@ class DerivCT:
             'cod_zona': self.cod_zona,
             'nr_nod': self.nr_nod,
             'serie_nod': self.serie_nod,
+            'observatii': self.observatii,
             'POINT_X': self.POINT_X,
             'POINT_Y': self.POINT_Y,
             'POINT_Z': self.POINT_Z,
@@ -39,18 +41,7 @@ class DerivCTParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
         super().__init__(layer, "Stalpi")
 
-        self.mapping = {
-            'denumire': 'Denumire',
-            'serie_cone': 'StareConex',
-            'cod_societ': 'cod_societ',
-            'cod_zona': 'cod_zona',
-            'nr_nod': 'nr_nod',
-            'serie_nod': 'serie_nod',
-            'POINT_X': 'POINT_X',
-            'POINT_Y': 'POINT_Y',
-            'POINT_Z': 'POINT_Z',
-            'POINT_M': 'POINT_M'
-        }
+        self.column_names = ['denumire', 'serie_cone', 'cod_societ', 'cod_zona', 'nr_nod', 'serie_nod', 'observatii', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
 
         self.validation_rules: Dict[str, Any] = {
             "denumire": {
@@ -102,6 +93,7 @@ class DerivCTParser(BaseParser):
                 cod_societ=feature['cod_societ'] if feature['cod_societ'] not in [None, 'NULL'] else None,
                 cod_zona=feature['cod_zona'] if feature['cod_zona'] not in [None, 'NULL'] else None,
                 nr_nod=feature['nr_nod'] if feature['nr_nod'] not in [None, 'NULL'] else None,
+                observatii="",
                 serie_nod=feature['serie_nod'] if feature['serie_nod'] not in [None, 'NULL'] else None,
                 POINT_X=feature['POINT_X'] if feature['POINT_X'] not in [None, 'NULL', 'nan'] else None,
                 POINT_Y=feature['POINT_Y'] if feature['POINT_Y'] not in [None, 'NULL', 'nan'] else None,
@@ -115,3 +107,6 @@ class DerivCTParser(BaseParser):
 
     def get_deriv_ct_data(self):
         return self.deriv_ct_data
+    
+    def get_name(self):
+        return "DERIV_CT"

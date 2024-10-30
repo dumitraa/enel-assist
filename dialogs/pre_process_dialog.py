@@ -81,6 +81,8 @@ from qgis.PyQt.QtCore import QVariant, Qt
 import processing
 import logging
 
+from .validate_dialog import ShpProcessor
+
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', filename='preprocess_debug.log')
 
@@ -123,6 +125,7 @@ class PreProcessDialog(QDialog):
             "11. Join Attributes by Location - RAMURI_AUX_VRTX",
             "12. Adauga coloana 'SEI' pentru RAMURI_AUX_VRTX",
             "13. Adauga coloana 'Join_Count' pentru toate join-urile",
+            "14. Salveaza datele"
         ]
 
         # Add steps to the list, making them non-interactive
@@ -154,7 +157,7 @@ class PreProcessDialog(QDialog):
                 return
             
             # Update progress bar
-            total_steps = 13  + len(self.layers) - 2 # Total number of processing steps
+            total_steps = 11  + (len(self.layers)*2) - 2 # Total number of processing steps
             self.progress_bar.setMaximum(total_steps)
             step = 0
             self.base_dir = QFileDialog.getExistingDirectory(None, "Select Folder")
@@ -164,36 +167,45 @@ class PreProcessDialog(QDialog):
             QgsMessageLog.logMessage("-------- START OF DATA PREPROCESSING --------", "EnelAssist", level=Qgis.Info)
             logging.info("-------- START OF DATA PREPROCESSING --------")
 
-            # 1. Calculate start and end points for each geometry
+            # 1. Calculate X. Y for layers
             try:
                 for layer in self.layers.values():
                     QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
                     if layer.name() in ["ReteaJT", "NOD_NRSTR"]:
                         QgsMessageLog.logMessage(f"Skipping layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
                     elif layer.name() in ["pct_vrtx"]:
-                        QgsMessageLog.logMessage(f"--------------------------LAYER PCT VRTX IDENTIFIEDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
                         self.calculate_geometry(layer, "POINT_X", "POINT_Y")
+                        QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
                         step += 1
                         self.progress_bar.setValue(step)
                     else:
                         self.calculate_geometry(layer, "POINT_X", "POINT_Y", "POINT_Z", "POINT_M")
+                        QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
                         step += 1
                         self.progress_bar.setValue(step)
-
                 
+                self.update_step(0)  # Mark step 1 as done
+            except Exception as e:
+                QgsMessageLog.logMessage(f"Error calculating geometry (X, Y, M, Z) for layers: {e}", "EnelAssist", level=Qgis.Critical)
+                
+                
+            # 2. Calculate START_X, START_Y, END_X, END_Y for ReteaJT
+            try:
                 self.calculate_geometry(self.layers["ReteaJT"], None, None, None, None, 'START_X', 'START_Y', 'END_X', 'END_Y')
+                QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
                 step += 1
                 self.progress_bar.setValue(step)
-                self.update_step(1)  # Mark step 1 as done
+                self.update_step(1)  # Mark step 2 as done
             except Exception as e:
-                QgsMessageLog.logMessage(f"Error calculating geometry for layers: {e}", "EnelAssist", level=Qgis.Critical)
+                QgsMessageLog.logMessage(f"Error calculating geometry (start, end) for layers: {e}", "EnelAssist", level=Qgis.Critical)
                 logging.error(f"Error calculating geometry for layers: {e}")
                 return
 
-            # 2. Add 'lungime' and 'id' columns to ReteaJT and calculate geometry length
+            # 3. Add 'lungime' and 'id' columns to ReteaJT and calculate geometry length
             try:
                 self.add_length_and_id(self.layers['ReteaJT'], 'lungime_', 'id_')
-                self.update_step(2)  # Mark step 2 as done
+                self.update_step(2)  # Mark step 3 as done
+                QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
                 step += 1
                 self.progress_bar.setValue(step)
             except KeyError:
@@ -205,10 +217,11 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error adding length and id columns: {e}")
                 return
 
-            # 3. Manage NOD_NRSTR columns
+            # 4. Manage NOD_NRSTR columns
             try:
                 self.modify_nod_nrstr(self.layers['NOD_NRSTR'])
-                self.update_step(3)  # Mark step 3 as done
+                self.update_step(3)  # Mark step 4 as done
+                QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
                 step += 1
                 self.progress_bar.setValue(step)
             except KeyError:
@@ -220,10 +233,10 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error modifying 'NOD_NRSTR' columns: {e}")
                 return
 
-            # 4. Merge layers for NODURI
+            # 5. Merge layers for NODURI
             try:
                 self.merge_layers([self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou']], 'NODURI')
-                self.update_step(4)  # Mark step 4 as done
+                self.update_step(4)  # Mark step 5 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -231,10 +244,10 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error merging layers for NODURI: {e}")
                 return
 
-            # 5. Merge layers for RAMURI
+            # 6. Merge layers for RAMURI
             try:
                 self.merge_layers([self.layers['ReteaJT']], 'RAMURI')
-                self.update_step(5)  # Mark step 5 as done
+                self.update_step(5)  # Mark step 6 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -242,10 +255,10 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error merging layers for RAMURI: {e}")
                 return
 
-            # 6. Join Attributes by Location - RAMURI_NODURI
+            # 7. Join Attributes by Location - RAMURI_NODURI
             try:
                 self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI'], 'RAMURI_NODURI', 'One-to-Many')
-                self.update_step(6)  # Mark step 6 as done
+                self.update_step(6)  # Mark step 7 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -253,10 +266,10 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error joining attributes by location for RAMURI_NODURI: {e}")
                 return
 
-            # 7. Join Attributes by Location - LEG_NODURI
+            # 8. Join Attributes by Location - LEG_NODURI
             try:
                 self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['BMPnou'], 'LEG_NODURI', 'One-to-One')
-                self.update_step(7)  # Mark step 7 as done
+                self.update_step(7)  # Mark step 8 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -264,10 +277,10 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error joining attributes by location for LEG_NODURI: {e}")
                 return
             
-            # 8. Join Attributes by Location - LEG_NRSTR
+            # 9. Join Attributes by Location - LEG_NRSTR
             try:
                 self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['Numar_Postal'], 'LEG_NRSTR', 'One-to-One')
-                self.update_step(8)  # Mark step 8 as done
+                self.update_step(8)  # Mark step 9 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -275,10 +288,10 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error joining attributes by location for LEG_NRSTR: {e}")
                 return
 
-            # 9. Merge layers for NODURI_AUX_VRTX
+            # 10. Merge layers for NODURI_AUX_VRTX
             try:
                 self.merge_layers([self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou'], self.layers['AUXILIAR'], self.layers['pct_vrtx']], 'NODURI_AUX_VRTX')
-                self.update_step(9)  # Mark step 9 as done
+                self.update_step(9)  # Mark step 10 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -286,10 +299,10 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error merging layers for NODURI_AUX_VRTX: {e}")
                 return
 
-            # 10. Join Attributes by Location - RAMURI_AUX_VRTX
+            # 11. Join Attributes by Location - RAMURI_AUX_VRTX
             try:
                 self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI_AUX_VRTX'], 'RAMURI_AUX_VRTX', 'One-to-Many')
-                self.update_step(10)  # Mark step 10 as done
+                self.update_step(10)  # Mark step 11 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -297,10 +310,10 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error joining attributes by location for RAMURI_AUX_VRTX: {e}")
                 return
 
-            # 11. Add 'SEI' column with conditional values
+            # 12. Add 'SEI' column with conditional values
             try:
                 self.add_sei_column(self.layers['RAMURI_AUX_VRTX'].name())
-                self.update_step(11)  # Mark step 11 as done
+                self.update_step(11)  # Mark step 12 as done
                 step += 1
                 self.progress_bar.setValue(step)
             except Exception as e:
@@ -308,20 +321,21 @@ class PreProcessDialog(QDialog):
                 logging.error(f"Error adding 'SEI' column: {e}")
                 return
 
-            # 12. Add 'Join_Count' column for all joins with value '1'
+            # 13. Add 'Join_Count' column for all joins with value '1'
             try:
                 self.add_join_count_column(self.layers['RAMURI_NODURI'].name())
                 self.add_join_count_column(self.layers['LEG_NODURI'].name())
                 self.add_join_count_column(self.layers['LEG_NRSTR'].name())
-                self.update_step(12)  # Mark step 12 as done
+                self.update_step(12)  # Mark step 13 as done
                 step += 1
+                QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
                 self.progress_bar.setValue(step)
             except Exception as e:
                 QgsMessageLog.logMessage(f"Error adding 'Join_Count' column: {e}", "EnelAssist", level=Qgis.Critical)
                 logging.error(f"Error adding 'Join_Count' column: {e}")
                 return
 
-            # 13. Done
+            # Done
             self.progress_bar.setValue(total_steps)
             QgsMessageLog.logMessage("Data preprocessing completed successfully.", "EnelAssist", level=Qgis.Info)
             logging.info("Data preprocessing completed successfully.")
@@ -335,6 +349,8 @@ class PreProcessDialog(QDialog):
         try:
             item = self.steps_list.item(index)
             QgsMessageLog.logMessage(f"Updating step {index}: {item.text()}", "EnelAssist", level=Qgis.Info)
+            QgsMessageLog.logMessage(f"Item flags: {item.flags()}", "EnelAssist", level=Qgis.Info)
+            QgsMessageLog.logMessage(f"Steps list - {self.steps_list}", "EnelAssist", level=Qgis.Info)
             item.setText("✓ " + item.text())  # Add a checkmark
             item.setForeground(QColor("green"))  # Change text color to green to indicate completion
             item.setFont(QFont("Arial", 10, QFont.Bold))  # Make the completed step bold
@@ -656,4 +672,5 @@ class PreProcessDialog(QDialog):
         except Exception as e:
             QgsMessageLog.logMessage(f"Error in add_join_count_column: {e} for layer: {layer_name}", "EnelAssist", level=Qgis.Critical)
             logging.error(f"Error in add_join_count_column: {e}")
+
 

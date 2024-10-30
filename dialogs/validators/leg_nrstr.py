@@ -6,7 +6,9 @@ iface = qgis.utils.iface
 from .base_parser import BaseParser
 
 class LegNrstr:
-    def __init__(self, internal_id, friendly_id, nr_strada, denumire_a, tip_artera, progresiv_, denumire_c, cod_strada, POINT_X, POINT_Y, POINT_Z, POINT_M, ignored=False):
+    def __init__(self, ID, Join_Count, internal_id, friendly_id, nr_strada, denumire_a, tip_artera, progresiv_, denumire_c, cod_strada, POINT_X, POINT_Y, POINT_Z, POINT_M, ignored=False):
+        self.ID = ID
+        self.Join_Count = Join_Count
         self.internal_id = internal_id
         self.friendly_id = friendly_id
         self.nr_strada = nr_strada
@@ -23,6 +25,8 @@ class LegNrstr:
 
     def to_dict(self):
         return {
+            'Join_Count': self.Join_Count,
+            "ID": self.ID,
             'internal_id': self.internal_id,
             'friendly_id': self.friendly_id,
             'nr_strada': self.nr_strada,
@@ -42,26 +46,9 @@ class LegNrstrParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
         super().__init__(layer, "LEG_NRSTR")
         
-        self.mapping = {
-            'Join_Count': 'Join_Count',
-            'ID': None,
-            'nr_strada': 'NrStrada',
-            'denumire_a': 'DenumireAr',
-            'tip_artera': 'TipArtera',
-            'progresiv_': 'ProgresivC',
-            'denumire_c': 'DenumireCl',
-            'cod_strada': 'cod_strada',
-            'POINT_X': 'POINT_X',
-            'POINT_Y': 'POINT_Y',
-            'POINT_Z': 'POINT_Z',
-            'POINT_M': 'POINT_M'
-        }
+        self.column_names = ['Join_Count', 'ID', 'nr_strada', 'denumire_a', 'tip_artera', 'progresiv_', 'denumire_c', 'cod_strada', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
 
         self.validation_rules: Dict[str, Any] = {
-            'Join_Count': {
-                'rule': ['1'],
-                'required': True
-            },
             'ID': {
                 'rule': 'str',
                 'required': True
@@ -100,6 +87,8 @@ class LegNrstrParser(BaseParser):
     def parse(self):
         for feature in self.layer.getFeatures():
             leg_nrstr_data = LegNrstr(
+                Join_Count=1,
+                ID=feature.id() + 2,
                 internal_id=feature.id(),
                 friendly_id=feature.id() + 1,
                 nr_strada=feature['NrStrada'] if feature['NrStrada'] not in [None, 'NULL', 'nan'] else None,
@@ -120,3 +109,6 @@ class LegNrstrParser(BaseParser):
 
     def get_leg_nrstr_data(self) -> List[LegNrstr]:
         return self.leg_nrstr_data
+
+    def get_name(self):
+        return "LEG_NRSTR"
