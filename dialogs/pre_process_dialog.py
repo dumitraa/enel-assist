@@ -124,8 +124,7 @@ class PreProcessDialog(QDialog):
             "10. Uneste straturile pentru NODURI_AUX_VRTX",
             "11. Join Attributes by Location - RAMURI_AUX_VRTX",
             "12. Adauga coloana 'SEI' pentru RAMURI_AUX_VRTX",
-            "13. Adauga coloana 'Join_Count' pentru toate join-urile",
-            "14. Salveaza datele"
+            "13. Adauga coloana 'Join_Count' pentru toate join-urile"
         ]
 
         # Add steps to the list, making them non-interactive

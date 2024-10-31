@@ -1,7 +1,6 @@
 import os
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QProgressBar, QPushButton, QFileDialog, QMessageBox
 from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis
-import pandas as pd
 
 from .validate_dialog import ShpProcessor
 
@@ -23,19 +22,13 @@ class GenerateExcelDialog(QDialog):
         self.setLayout(self.layout)
 
     def __exec__(self):
-        self.process_data()
-        QgsMessageLog.logMessage(f"Executing export process at time {pd.Timestamp.now()}", "EnelAssist", level=Qgis.Info)
-        
+        self.process_data()        
         # Directory prompt for saving Excel files
         output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
         if not output_dir:
             return  # If user cancels, do nothing
 
-        parser_ids = set(id(parser) for parser in self.processor.parsers)
-        QgsMessageLog.logMessage(f"Unique parser IDs: {parser_ids}", "EnelAssist", level=Qgis.Info)
-
         for parser in self.processor.parsers:
-            QgsMessageLog.logMessage(f"Exporting {parser.get_name()} data to Excel... There are {len(parser.data)} elements to export.. The parsers are {self.processor.parsers}", "EnelAssist", level=Qgis.Info)
             parser.export_to_excel(output_dir, parser.get_name())
 
         # Notify user when all exports are complete

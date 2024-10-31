@@ -126,14 +126,14 @@ class BaseParser:
 
     def export_to_excel(self, output_dir, filename):
         try:
-            QgsMessageLog.logMessage("Starting export to Excel...", "EnelAssist", level=Qgis.Info)
+            QgsMessageLog.logMessage("Starting export to XLSX...", "EnelAssist", level=Qgis.Info)
 
             # Step 1: Validate data
             if not self.data:
                 raise ValueError("No data to export.")
             if not filename:
                 raise ValueError("Filename not provided.")
-            
+
             # Step 2: Ensure output directory exists
             if not os.path.exists(output_dir):
                 try:
@@ -142,59 +142,50 @@ class BaseParser:
                 except Exception as e:
                     raise OSError(f"Failed to create output directory '{output_dir}': {e}")
 
-            # Step 3: Define output path for Excel file and check if file exists
-            output_path = os.path.join(output_dir, f"{filename}.xlsx")
-            if os.path.exists(output_path):
-                QgsMessageLog.logMessage(f"File '{output_path}' already exists. Skipping export.", "EnelAssist", level=Qgis.Info)
+            # Step 3: Define output path for XLSX file and check if file exists
+            xlsx_output_path = os.path.join(output_dir, f"{filename}.xlsx")
+
+            if os.path.exists(xlsx_output_path):
+                QgsMessageLog.logMessage(f"File '{xlsx_output_path}' already exists. Skipping export.", "EnelAssist", level=Qgis.Info)
                 return  # Skip if file already exists
 
             # Step 4: Create DataFrame
             try:
                 df = pd.DataFrame([
-                    {key: getattr(obj, key) for key in self.column_names}
+                    {key: getattr(obj, key, "") for key in self.column_names}
                     for obj in self.data
                 ])
                 QgsMessageLog.logMessage(f"DataFrame created successfully with columns: {self.column_names}", "EnelAssist", level=Qgis.Info)
             except Exception as e:
                 raise ValueError(f"Failed to create DataFrame: {e}")
 
-            # Step 5: Check DataFrame integrity
-            if df.empty:
-                QgsMessageLog.logMessage("Warning: DataFrame is empty. No data will be exported.", "EnelAssist", level=Qgis.Warning)
-
-            # Fill NaN values if necessary
-            df.fillna("", inplace=True)
-
-            # Step 6: Export DataFrame to Excel with no formatting
+            # Step 5: Export DataFrame to XLSX using xlsxwriter with custom formatting for headers
             try:
-                # Create a new workbook and add a worksheet
-                wb = Workbook()
-                ws = wb.active
+                with pd.ExcelWriter(xlsx_output_path, engine='xlsxwriter') as writer:
+                    df.to_excel(writer, index=False, header=True)
 
-                # Write DataFrame rows into the worksheet
-                for row_idx, row in enumerate(dataframe_to_rows(df, index=False, header=True), 1):
-                    for col_idx, value in enumerate(row, 1):
-                        cell = ws.cell(row=row_idx, column=col_idx, value=value)
-                        # Remove bold for headers
-                        if row_idx == 1:
-                            cell.font = Font(bold=False)
-                        # Remove borders
-                        cell.border = Border(left=Side(border_style=None), 
-                                            right=Side(border_style=None), 
-                                            top=Side(border_style=None), 
-                                            bottom=Side(border_style=None))
+                    # Access the workbook and worksheet
+                    workbook = writer.book
+                    worksheet = writer.sheets['Sheet1']
 
-                # Save the workbook
-                wb.save(output_path)
-                QgsMessageLog.logMessage(f"Data successfully exported to {output_path}", "EnelAssist", level=Qgis.Info)
+                    # Define a non-bold format for the headers
+                    header_format = workbook.add_format({'bold': False})
+                    for col_num, value in enumerate(df.columns.values):
+                        worksheet.write(0, col_num, value, header_format)
 
+                    QgsMessageLog.logMessage(f"Data successfully exported to {xlsx_output_path}", "EnelAssist", level=Qgis.Info)
             except Exception as e:
-                raise RuntimeError(f"Failed to write to Excel file '{output_path}': {e}")
+                raise RuntimeError(f"Failed to write XLSX file '{xlsx_output_path}': {e}")
+
 
         except Exception as e:
             # Log the detailed error and stack trace for debugging
-            error_message = f"An error occurred during the export to Excel: {str(e)}\n{traceback.format_exc()}"
+            error_message = f"An error occurred during the export to XLSX: {str(e)}\n{traceback.format_exc()}"
             QgsMessageLog.logMessage(error_message, "EnelAssist", level=Qgis.Critical)
+            # Optionally, inform the user with a message box
+            # QMessageBox.critical(None, "Export Error", error_message)
+
+
 
 
 
