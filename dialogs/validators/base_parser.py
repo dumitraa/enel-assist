@@ -2,9 +2,6 @@ from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis
 import os
 import pandas as pd
 import traceback
-from openpyxl import Workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
-from openpyxl.styles import Font, Border, Side
 
 class BaseParser:
     def __init__(self, layer: QgsVectorLayer, layer_name: str):
@@ -126,7 +123,7 @@ class BaseParser:
 
     def export_to_excel(self, output_dir, filename):
         try:
-            QgsMessageLog.logMessage("Starting export to XLSX...", "EnelAssist", level=Qgis.Info)
+            QgsMessageLog.logMessage("Starting export to CSV...", "EnelAssist", level=Qgis.Info)
 
             # Step 1: Validate data
             if not self.data:
@@ -142,11 +139,11 @@ class BaseParser:
                 except Exception as e:
                     raise OSError(f"Failed to create output directory '{output_dir}': {e}")
 
-            # Step 3: Define output path for XLSX file and check if file exists
-            xlsx_output_path = os.path.join(output_dir, f"{filename}.xlsx")
+            # Step 3: Define output path for CSV file and check if file exists
+            csv_output_path = os.path.join(output_dir, f"{filename}.csv")
 
-            if os.path.exists(xlsx_output_path):
-                QgsMessageLog.logMessage(f"File '{xlsx_output_path}' already exists. Skipping export.", "EnelAssist", level=Qgis.Info)
+            if os.path.exists(csv_output_path):
+                QgsMessageLog.logMessage(f"File '{csv_output_path}' already exists. Skipping export.", "EnelAssist", level=Qgis.Info)
                 return  # Skip if file already exists
 
             # Step 4: Create DataFrame
@@ -159,32 +156,20 @@ class BaseParser:
             except Exception as e:
                 raise ValueError(f"Failed to create DataFrame: {e}")
 
-            # Step 5: Export DataFrame to XLSX using xlsxwriter with custom formatting for headers
+            # Step 5: Export DataFrame to CSV
             try:
-                with pd.ExcelWriter(xlsx_output_path, engine='xlsxwriter') as writer:
-                    df.to_excel(writer, index=False, header=True)
+                df.to_csv(csv_output_path, index=False)
+                QgsMessageLog.logMessage(f"Data successfully exported to {csv_output_path}", "EnelAssist", level=Qgis.Info)
 
-                    # Access the workbook and worksheet
-                    workbook = writer.book
-                    worksheet = writer.sheets['Sheet1']
-
-                    # Define a non-bold format for the headers
-                    header_format = workbook.add_format({'bold': False})
-                    for col_num, value in enumerate(df.columns.values):
-                        worksheet.write(0, col_num, value, header_format)
-
-                    QgsMessageLog.logMessage(f"Data successfully exported to {xlsx_output_path}", "EnelAssist", level=Qgis.Info)
             except Exception as e:
-                raise RuntimeError(f"Failed to write XLSX file '{xlsx_output_path}': {e}")
-
+                raise RuntimeError(f"Failed to write CSV file '{csv_output_path}': {e}")
 
         except Exception as e:
             # Log the detailed error and stack trace for debugging
-            error_message = f"An error occurred during the export to XLSX: {str(e)}\n{traceback.format_exc()}"
+            error_message = f"An error occurred during the export to CSV: {str(e)}\n{traceback.format_exc()}"
             QgsMessageLog.logMessage(error_message, "EnelAssist", level=Qgis.Critical)
             # Optionally, inform the user with a message box
             # QMessageBox.critical(None, "Export Error", error_message)
-
 
 
 

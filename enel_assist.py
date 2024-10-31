@@ -30,8 +30,6 @@ from qgis.PyQt.QtWidgets import QAction
 from qgis.core import QgsMessageLog, Qgis
 
 import os
-import subprocess
-from PyQt5.QtWidgets import QMessageBox
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -185,36 +183,13 @@ class EnelAssist:
         return action
 
 
-    def check_and_install_xlsxwriter():
-        try:
-            import xlsxwriter
-        except ImportError:
-            # If xlsxwriter is not found, try to install it via the OSGeo4W shell as admin
-            QMessageBox.information(None, "Dependency", "xlsxwriter not found. Installing now, please approve the administrator access prompt.")
-
-            # Path to the OSGeo4W shell
-            osgeo4w_shell = r'C:/OSGeo4W/OSGeo4W.bat'
-            if not os.path.exists(osgeo4w_shell):
-                QMessageBox.critical(None, "OSGeo4W Not Found", "OSGeo4W shell not found. Please install it or add xlsxwriter manually.")
-                return
-            
-            # Run OSGeo4W shell as administrator to install xlsxwriter
-            try:
-                subprocess.run(['runas', '/user:Administrator', f'"{osgeo4w_shell}"'], check=True)
-                subprocess.run(['pip', 'install', 'xlsxwriter'], shell=True, check=True)
-                QMessageBox.information(None, "Success", "xlsxwriter installed successfully. Please restart QGIS.")
-            except subprocess.CalledProcessError as e:
-                QMessageBox.critical(None, "Installation Failed", f"Failed to install xlsxwriter: {e}")
-
-
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
         self.toolbar = self.iface.addToolBar('EnelAssist')
         self.toolbar.setObjectName('EnelAssist')
         self.toolbar.setMovable(True)
-        
-        
+
         self.add_action(
             "Pre-Process",
             text=self.tr(u'Pre-Process'),
@@ -241,7 +216,6 @@ class EnelAssist:
         
         # will be set False in run()
         self.first_start = True
-        self.check_and_install_xlsxwriter()
 
 
     def unload(self):

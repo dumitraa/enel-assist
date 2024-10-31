@@ -28,8 +28,12 @@ class GenerateExcelDialog(QDialog):
         if not output_dir:
             return  # If user cancels, do nothing
 
-        for parser in self.processor.parsers:
+        total_parsers = len(self.processor.parsers)
+        self.progress_bar.setRange(0, total_parsers)
+        
+        for i, parser in enumerate(self.processor.parsers):
             parser.export_to_excel(output_dir, parser.get_name())
+            self.progress_bar.setValue(i + 1)  # Update progress for each parser processed
 
         # Notify user when all exports are complete
         QMessageBox.information(self, "Complete", "Excel file generation completed!")
@@ -44,5 +48,7 @@ class GenerateExcelDialog(QDialog):
 
         if self.processor:
             QgsMessageLog.logMessage("Clearing existing parsers...!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", "EnelAssist", level=Qgis.Info)
-            self.processor = None # Clear out any existing parsers to avoid duplicates
+            self.processor = None  # Clear out any existing parsers to avoid duplicates
+        
+        # Initialize processor with source paths
         self.processor = ShpProcessor(source_paths, validate=False)

@@ -34,7 +34,7 @@ class AuxiliarParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
         super().__init__(layer, "AUXILIAR")
         
-        self.column_names = ['denumire', 'observatii', 'POINT_X', 'POINT_Y', 'POINT_M']
+        self.column_names = ['denumire', 'observatii', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
 
         self.validation_rules: Dict[str, Any] = {
             "denumire": {
