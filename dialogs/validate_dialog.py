@@ -23,7 +23,7 @@ class ShpProcessor:
     '''
     Class to process the shapefile (SHP) layers, validate them, and work with them in QGIS.
     '''
-    def __init__(self, source_paths):
+    def __init__(self, source_paths, validate=True):
         '''
         Constructor for the ShpProcessor class
         :param source_paths: List of paths to the source shapefile layers
@@ -34,9 +34,11 @@ class ShpProcessor:
         self.parsers = []
         self.invalid_elements = []
         self.load_shp_layers()
+        if validate:
+            self.validate_layers()
         QgsMessageLog.logMessage("ShpProcessor initialized", "EnelAssist", 0)
     
-    def load_shp_layers(self):
+    def load_shp_layers(self, validate=False):
         '''
         Load the SHP layers from the QGIS project, parse them, and store the parsers in a list
         :return: None
@@ -69,14 +71,15 @@ class ShpProcessor:
             elif layer_name == "Numar_Postal":
                 parser = NrStrParser(layer)
             else:
+                parser = None
                 QgsMessageLog.logMessage(f"Layer {layer_name} not recognized. Skipping...", "EnelAssist", 1)
                 
             
-            parser.parse()
-            self.parsers.append(parser)
-            QgsMessageLog.logMessage(f"Parser for {layer_name} added", "EnelAssist", 0)
-            
-        self.validate_layers()
+            if parser:
+                parser.parse()
+                self.parsers.append(parser)
+                QgsMessageLog.logMessage(f"Parser for {layer_name} added", "EnelAssist", 0)
+    
         QgsMessageLog.logMessage("Finished loading SHP layers", "EnelAssist", 0)
     
     def validate_layers(self):

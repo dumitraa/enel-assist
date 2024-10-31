@@ -6,13 +6,14 @@ iface = qgis.utils.iface
 from .base_parser import BaseParser
 
 class Auxiliar:
-    def __init__(self, internal_id, friendly_id, denumire, observatii, POINT_X, POINT_Y, POINT_M, ignored=False):
+    def __init__(self, internal_id, friendly_id, denumire, observatii, POINT_X, POINT_Y, POINT_Z, POINT_M, ignored=False):
         self.internal_id = internal_id
         self.friendly_id = friendly_id
         self.denumire = denumire
         self.observatii = observatii
         self.POINT_X = POINT_X
         self.POINT_Y = POINT_Y
+        self.POINT_Z = POINT_Z
         self.POINT_M = POINT_M
         self.ignored = ignored
 
@@ -24,6 +25,7 @@ class Auxiliar:
             'observatii': self.observatii,
             'POINT_X': self.POINT_X,
             'POINT_Y': self.POINT_Y,
+            'POINT_Z': self.POINT_Z,
             'POINT_M': self.POINT_M,
             'ignored': self.ignored
         }
@@ -63,6 +65,7 @@ class AuxiliarParser(BaseParser):
                 observatii=feature['Observatii'] if feature['Observatii'] not in [None, 'NULL', 'nan'] else None,
                 POINT_X=feature['POINT_X'] if feature['POINT_X'] not in [None, 'NULL', 'nan'] else None,
                 POINT_Y=feature['POINT_Y'] if feature['POINT_Y'] not in [None, 'NULL', 'nan'] else None,
+                POINT_Z=feature['POINT_Z'] if feature['POINT_Z'] not in [None, 'NULL', 'nan'] else None,
                 POINT_M=feature['POINT_M'] if feature['POINT_M'] not in [None, 'NULL', 'nan'] else None
             )
             # QgsMessageLog.logMessage(f"Feature {auxiliar_data.denumire} parsed successfully with data {auxiliar_data.to_dict()}", "EnelAssist", level=Qgis.Info)

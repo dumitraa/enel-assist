@@ -3,11 +3,11 @@ from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis
 from .base_parser import BaseParser
 
 class DerivCT:
-    def __init__(self, internal_id, friendly_id, denumire, serie_cone, cod_societ, cod_zona, nr_nod, serie_nod, observatii, POINT_X, POINT_Y, POINT_Z, POINT_M, ignored=False):
+    def __init__(self, internal_id, friendly_id, denumire, stare_cone, cod_societ, cod_zona, nr_nod, serie_nod, observatii, POINT_X, POINT_Y, POINT_Z, POINT_M, ignored=False):
         self.internal_id = internal_id
         self.friendly_id = friendly_id
         self.denumire = denumire
-        self.serie_cone = serie_cone
+        self.stare_cone = stare_cone
         self.cod_societ = cod_societ
         self.cod_zona = cod_zona
         self.nr_nod = nr_nod
@@ -24,7 +24,7 @@ class DerivCT:
             'internal_id': self.internal_id,
             'friendly_id': self.friendly_id,
             'denumire': self.denumire,
-            'serie_cone': self.serie_cone,
+            'stare_cone': self.stare_cone,
             'cod_societ': self.cod_societ,
             'cod_zona': self.cod_zona,
             'nr_nod': self.nr_nod,
@@ -41,14 +41,14 @@ class DerivCTParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
         super().__init__(layer, "Stalpi")
 
-        self.column_names = ['denumire', 'serie_cone', 'cod_societ', 'cod_zona', 'nr_nod', 'serie_nod', 'observatii', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
+        self.column_names = ['denumire', 'stare_cone', 'cod_societ', 'cod_zona', 'nr_nod', 'serie_nod', 'observatii', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
 
         self.validation_rules: Dict[str, Any] = {
             "denumire": {
                 'rule': ['SE10', 'SC10001', 'SE4', 'SC10002', 'SC10005', 'SE11', 'Stalp'],
                 'required': True
             },
-            "serie_cone": {
+            "stare_cone": {
                 'rule': ['C - inchis', 'A - deschis'],
                 'required': True
             },
@@ -89,7 +89,7 @@ class DerivCTParser(BaseParser):
                 internal_id=feature.id(),
                 friendly_id=feature.id() + 1,
                 denumire=feature['Denumire'] if feature['Denumire'] not in [None, 'NULL', 'nan'] else None,
-                serie_cone=feature['StareConex'] if feature['StareConex'] not in [None, 'NULL'] else None,
+                stare_cone=feature['StareConex'] if feature['StareConex'] not in [None, 'NULL'] else None,
                 cod_societ=feature['cod_societ'] if feature['cod_societ'] not in [None, 'NULL'] else None,
                 cod_zona=feature['cod_zona'] if feature['cod_zona'] not in [None, 'NULL'] else None,
                 nr_nod=feature['nr_nod'] if feature['nr_nod'] not in [None, 'NULL'] else None,
