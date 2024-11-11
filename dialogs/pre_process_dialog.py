@@ -1,5 +1,5 @@
 """
-- LAYERS NEEDED - ['InceputLinie', 'Cutii', 'Stalpi', 'BMPnou', 'ReteaJT', 'NOD_NRSTR', 'AUXILIAR', 'pct_vrtx', "Numar_Postal"]
+- LAYERS NEEDED - ['InceputLinie', 'Cutii', 'Stalpi', 'BMPnou', 'ReteaJT', 'NOD_NRSTR', 'AUXILIAR', 'pct_vrtx', "Numar_Postal", "Coloana"]
 
 
 STEP 1. Calculate geometry for all shp files - X, Y coord line start and end
@@ -143,193 +143,142 @@ class PreProcessDialog(QDialog):
 
     def __exec__(self):
         QgsMessageLog.logMessage("Starting data preprocessing...", "EnelAssist", level=Qgis.Info)
-        try:
-            # Automated layer retrieval
-            self.layers = self.get_layers()
-            if not self.layers:
-                QgsMessageLog.logMessage("No layers found matching the required names.", "EnelAssist", level=Qgis.Critical)
-                return
+        # Automated layer retrieval
+        self.layers = self.get_layers()
+        if not self.layers:
+            QgsMessageLog.logMessage("No layers found matching the required names.", "EnelAssist", level=Qgis.Critical)
+            return
+        
+        # Update progress bar
+        layers_valid = [layer for layer in self.layers.values() if layer is not None]
+        total_steps = 12 + len(layers_valid) - 2# Total number of processing steps
+        self.progress_bar.setMaximum(total_steps)
+        step = 0
+        self.base_dir = QFileDialog.getExistingDirectory(None, "Select Folder")
+        os.makedirs(self.base_dir, exist_ok=True)  # Ensure directory exists
+
+        # Execute all processing steps
+        QgsMessageLog.logMessage("-------- START OF DATA PREPROCESSING --------", "EnelAssist", level=Qgis.Info)
+
+        # 1. Calculate X. Y for layers
+        for layer in self.layers.values():
+            # QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+            if layer is not None and layer.name() in ["ReteaJT", "NOD_NRSTR"]:
+                # QgsMessageLog.logMessage(f"Skipping layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+                continue
+            elif layer is not None and layer.name() in ["pct_vrtx"]:
+                success = self.calculate_geometry(layer, "POINT_X", "POINT_Y")
+                step += 1
+                self.progress_bar.setValue(step)
+            elif layer is not None:
+                success = self.calculate_geometry(layer, "POINT_X", "POINT_Y", "POINT_Z", "POINT_M")
+                # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
+                step += 1
+                self.progress_bar.setValue(step)
+        
+        self.update_step(0, success)  # Mark step 1 as done
             
-            # Update progress bar
-            total_steps = 11  + (len(self.layers)*2) - 2 # Total number of processing steps
-            self.progress_bar.setMaximum(total_steps)
-            step = 0
-            self.base_dir = QFileDialog.getExistingDirectory(None, "Select Folder")
-            os.makedirs(self.base_dir, exist_ok=True)  # Ensure directory exists
-
-            # Execute all processing steps
-            QgsMessageLog.logMessage("-------- START OF DATA PREPROCESSING --------", "EnelAssist", level=Qgis.Info)
-
-            # 1. Calculate X. Y for layers
-            try:
-                for layer in self.layers.values():
-                    QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
-                    if layer.name() in ["ReteaJT", "NOD_NRSTR"]:
-                        QgsMessageLog.logMessage(f"Skipping layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
-                    elif layer.name() in ["pct_vrtx"]:
-                        self.calculate_geometry(layer, "POINT_X", "POINT_Y")
-                        QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
-                        step += 1
-                        self.progress_bar.setValue(step)
-                    else:
-                        self.calculate_geometry(layer, "POINT_X", "POINT_Y", "POINT_Z", "POINT_M")
-                        QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
-                        step += 1
-                        self.progress_bar.setValue(step)
-                
-                self.update_step(0)  # Mark step 1 as done
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error calculating geometry (X, Y, M, Z) for layers: {e}", "EnelAssist", level=Qgis.Critical)
-                
-                
-            # 2. Calculate START_X, START_Y, END_X, END_Y for ReteaJT
-            try:
-                self.calculate_geometry(self.layers["ReteaJT"], None, None, None, None, 'START_X', 'START_Y', 'END_X', 'END_Y')
-                QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
-                step += 1
-                self.progress_bar.setValue(step)
-                self.update_step(1)  # Mark step 2 as done
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error calculating geometry (start, end) for layers: {e}", "EnelAssist", level=Qgis.Critical)
-                return
-
-            # 3. Add 'lungime' and 'id' columns to ReteaJT and calculate geometry length
-            try:
-                self.add_length_and_id(self.layers['ReteaJT'], 'lungime_', 'id_')
-                self.update_step(2)  # Mark step 3 as done
-                QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
-                step += 1
-                self.progress_bar.setValue(step)
-            except KeyError:
-                QgsMessageLog.logMessage(f"Layer 'ReteaJT' not found. The layers are {self.layers.keys()}", "EnelAssist", level=Qgis.Critical)
-                return
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error adding length and id columns: {e}", "EnelAssist", level=Qgis.Critical)
-                return
-
-            # 4. Manage NOD_NRSTR columns
-            try:
-                self.modify_nod_nrstr(self.layers['NOD_NRSTR'])
-                self.update_step(3)  # Mark step 4 as done
-                QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
-                step += 1
-                self.progress_bar.setValue(step)
-            except KeyError:
-                QgsMessageLog.logMessage("Layer 'NOD_NRSTR' not found.", "EnelAssist", level=Qgis.Critical)
-                return
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error modifying 'NOD_NRSTR' columns: {e}", "EnelAssist", level=Qgis.Critical)
-                return
-
-            # 5. Merge layers for NODURI
-            try:
-                self.merge_layers([self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou']], 'NODURI')
-                self.update_step(4)  # Mark step 5 as done
-                step += 1
-                self.progress_bar.setValue(step)
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error merging layers for NODURI: {e}", "EnelAssist", level=Qgis.Critical)
-                return
-
-            # 6. Merge layers for RAMURI
-            try:
-                self.merge_layers([self.layers['ReteaJT']], 'RAMURI')
-                self.update_step(5)  # Mark step 6 as done
-                step += 1
-                self.progress_bar.setValue(step)
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error merging layers for RAMURI: {e}", "EnelAssist", level=Qgis.Critical)
-                return
-
-            # 7. Join Attributes by Location - RAMURI_NODURI
-            try:
-                self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI'], 'RAMURI_NODURI', 'One-to-Many')
-                self.update_step(6)  # Mark step 7 as done
-                step += 1
-                self.progress_bar.setValue(step)
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error joining attributes by location for RAMURI_NODURI: {e}", "EnelAssist", level=Qgis.Critical)
-                return
-
-            # 8. Join Attributes by Location - LEG_NODURI
-            try:
-                self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['BMPnou'], 'LEG_NODURI', 'One-to-One')
-                self.update_step(7)  # Mark step 8 as done
-                step += 1
-                self.progress_bar.setValue(step)
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error joining attributes by location for LEG_NODURI: {e}", "EnelAssist", level=Qgis.Critical)
-                return
             
-            # 9. Join Attributes by Location - LEG_NRSTR
-            try:
-                self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['Numar_Postal'], 'LEG_NRSTR', 'One-to-One')
-                self.update_step(8)  # Mark step 9 as done
-                step += 1
-                self.progress_bar.setValue(step)
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error joining attributes by location for LEG_NRSTR: {e}", "EnelAssist", level=Qgis.Critical)
-                return
+        # 2. Calculate START_X, START_Y, END_X, END_Y for ReteaJT
+        success = self.calculate_geometry(self.layers["ReteaJT"], None, None, None, None, 'START_X', 'START_Y', 'END_X', 'END_Y')
+        # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
+        step += 1
+        self.progress_bar.setValue(step)
+        self.update_step(1, success)  # Mark step 2 as done
 
-            # 10. Merge layers for NODURI_AUX_VRTX
-            try:
-                self.merge_layers([self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou'], self.layers['AUXILIAR'], self.layers['pct_vrtx']], 'NODURI_AUX_VRTX')
-                self.update_step(9)  # Mark step 10 as done
-                step += 1
-                self.progress_bar.setValue(step)
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error merging layers for NODURI_AUX_VRTX: {e}", "EnelAssist", level=Qgis.Critical)
-                return
+        # 3. Add 'lungime' and 'id' columns to ReteaJT and calculate geometry length
+        success = self.add_length_and_id(self.layers['ReteaJT'], 'lungime_', 'id_')
+        self.update_step(2, success)  # Mark step 3 as done
+        # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
+        step += 1
+        self.progress_bar.setValue(step)
 
-            # 11. Join Attributes by Location - RAMURI_AUX_VRTX
-            try:
-                self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI_AUX_VRTX'], 'RAMURI_AUX_VRTX', 'One-to-Many')
-                self.update_step(10)  # Mark step 11 as done
-                step += 1
-                self.progress_bar.setValue(step)
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error joining attributes by location for RAMURI_AUX_VRTX: {e}", "EnelAssist", level=Qgis.Critical)
-                return
+        # 4. Manage NOD_NRSTR columns
+        success = self.modify_nod_nrstr(self.layers['NOD_NRSTR'])
+        self.update_step(3, success)  # Mark step 4 as done
+        # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
+        step += 1
+        self.progress_bar.setValue(step)
 
-            # 12. Add 'SEI' column with conditional values
-            try:
-                self.add_sei_column(self.layers['RAMURI_AUX_VRTX'].name())
-                self.update_step(11)  # Mark step 12 as done
-                step += 1
-                self.progress_bar.setValue(step)
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error adding 'SEI' column: {e}", "EnelAssist", level=Qgis.Critical)
-                return
+        # 5. Merge layers for NODURI
+        success = self.merge_layers([self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou']], 'NODURI')
+        self.update_step(4, success)  # Mark step 5 as done
+        step += 1
+        self.progress_bar.setValue(step)
 
-            # 13. Add 'Join_Count' column for all joins with value '1'
-            try:
-                self.add_join_count_column(self.layers['RAMURI_NODURI'].name())
-                self.add_join_count_column(self.layers['LEG_NODURI'].name())
-                self.add_join_count_column(self.layers['LEG_NRSTR'].name())
-                self.update_step(12)  # Mark step 13 as done
-                step += 1
-                QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
-                self.progress_bar.setValue(step)
-            except Exception as e:
-                QgsMessageLog.logMessage(f"Error adding 'Join_Count' column: {e}", "EnelAssist", level=Qgis.Critical)
-                return
+        # 6. Merge layers for RAMURI
+        success = self.merge_layers([self.layers['ReteaJT'], self.layers['Coloana']], 'RAMURI')
+        self.update_step(5, success)  # Mark step 6 as done
+        step += 1
+        self.progress_bar.setValue(step)
 
-            # Done
-            self.progress_bar.setValue(total_steps)
-            QgsMessageLog.logMessage("Data preprocessing completed successfully.", "EnelAssist", level=Qgis.Info)
-        except Exception as e:
-            QgsMessageLog.logMessage(f"An error occurred during processing: {e}", "EnelAssist", level=Qgis.Critical)
+        # 7. Join Attributes by Location - RAMURI_NODURI
+        success = self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI'], 'RAMURI_NODURI', 'One-to-Many')
+        self.update_step(6, success)  # Mark step 7 as done
+        step += 1
+        self.progress_bar.setValue(step)
+
+        # 8. Join Attributes by Location - LEG_NODURI
+        success = self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['BMPnou'], 'LEG_NODURI', 'One-to-One')
+        self.update_step(7, success)  # Mark step 8 as done
+        step += 1
+        self.progress_bar.setValue(step)
+        
+        # 9. Join Attributes by Location - LEG_NRSTR
+        success = self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['Numar_Postal'], 'LEG_NRSTR', 'One-to-One')
+        self.update_step(8, success)  # Mark step 9 as done
+        step += 1
+        self.progress_bar.setValue(step)
+
+        # 10. Merge layers for NODURI_AUX_VRTX
+        success = self.merge_layers([self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou'], self.layers['AUXILIAR'], self.layers['pct_vrtx']], 'NODURI_AUX_VRTX')
+        self.update_step(9, success)  # Mark step 10 as done
+        step += 1
+        self.progress_bar.setValue(step)
+
+        # 11. Join Attributes by Location - RAMURI_AUX_VRTX
+        success = self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI_AUX_VRTX'], 'RAMURI_AUX_VRTX', 'One-to-Many')
+        self.update_step(10, success)  # Mark step 11 as done
+        step += 1
+        self.progress_bar.setValue(step)
+
+        # 12. Add 'SEI' column with conditional values
+        success = self.add_sei_column(self.layers['RAMURI_AUX_VRTX'].name())
+        self.update_step(11, success)  # Mark step 12 as done
+        step += 1
+        self.progress_bar.setValue(step)
+
+        # 13. Add 'Join_Count' column for all joins with value '1'
+        success1 = self.add_join_count_column(self.layers['RAMURI_NODURI'].name())
+        success2 = self.add_join_count_column(self.layers['LEG_NODURI'].name())
+        success3 = self.add_join_count_column(self.layers['LEG_NRSTR'].name())
+        
+        if success1 and success2 and success3:
+            success = True
+        elif success1 is False or success2 is False or success3 is False:
+            success = None
+        else:
+            success = False
+        self.update_step(12, success)  # Mark step 13 as done
+        step += 1
+        # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
+        self.progress_bar.setValue(step)
 
 
-    def update_step(self, index):
+    def update_step(self, index, success=True):
         """Marks a step as done by updating the list item."""
         try:
             item = self.steps_list.item(index)
-            QgsMessageLog.logMessage(f"Updating step {index}: {item.text()}", "EnelAssist", level=Qgis.Info)
-            QgsMessageLog.logMessage(f"Item flags: {item.flags()}", "EnelAssist", level=Qgis.Info)
-            QgsMessageLog.logMessage(f"Steps list - {self.steps_list}", "EnelAssist", level=Qgis.Info)
-            item.setText("✓ " + item.text())  # Add a checkmark
-            item.setForeground(QColor("green"))  # Change text color to green to indicate completion
+            # QgsMessageLog.logMessage(f"Updating step {index}: {item.text()}", "EnelAssist", level=Qgis.Info)
+            if success:
+                item.setText("✓ " + item.text())  # Add a checkmark
+                item.setForeground(QColor("green"))  # Change text color to green to indicate completion
+            elif success is None:
+                item.setText("⚠ " + item.text())
+                item.setForeground(QColor("orange"))  # Change text color to orange to indicate partial completion
+            else:
+                item.setText("✗ " + item.text())
+                item.setForeground(QColor("red"))  # Change text color to red to indicate failure
             item.setFont(QFont("Arial", 10, QFont.Bold))  # Make the completed step bold
             QApplication.processEvents()  # Force UI update after each step
         except Exception as e:
@@ -342,26 +291,21 @@ class PreProcessDialog(QDialog):
         Get layers by name from the QGIS project and add them to self.layers
         '''
         layers = {}
-        layer_names = ['InceputLinie', 'Cutii', 'Stalpi', 'BMPnou', 'ReteaJT', 'NOD_NRSTR', 'AUXILIAR', 'pct_vrtx', "Numar_Postal", "NODURI", "RAMURI", "RAMURI_NODURI", "LEG_NODURI", "NODURI_AUX_VRTX", "RAMURI_AUX_VRTX", "LEG_NRSTR"]
+        layer_names = ['InceputLinie', 'Cutii', 'Stalpi', 'BMPnou', 'ReteaJT', 'NOD_NRSTR', 'AUXILIAR', 'pct_vrtx', "Numar_Postal", "NODURI", "RAMURI", "RAMURI_NODURI", "LEG_NODURI", "NODURI_AUX_VRTX", "RAMURI_AUX_VRTX", "LEG_NRSTR", "Coloana"]
 
         # Get all layers in the current QGIS project (keep the layer objects)
         qgis_layers = QgsProject.instance().mapLayers().values()
-        QgsMessageLog.logMessage(f"----------- QGIS LAYERS: {qgis_layers}", "EnelAssist", level=Qgis.Info)
-
-        # Log all available layers in the project for debugging
-        available_layer_names = [layer.name() for layer in qgis_layers]
-        QgsMessageLog.logMessage(f"Available layers in QGIS: {available_layer_names}", "EnelAssist", level=Qgis.Info)
+        # QgsMessageLog.logMessage(f"----------- QGIS LAYERS: {qgis_layers}", "EnelAssist", level=Qgis.Info)
 
         # Iterate through the actual layer objects
-        for layer in qgis_layers:
-            # If the layer name matches one in the predefined list, add it to the dictionary
-            if layer.name() in layer_names:
-                layers[layer.name()] = layer
+        for layer_name in layer_names:
+            layer = next((l for l in qgis_layers if l.name() == layer_name), None)
+            layers[layer_name] = layer  # Add the layer if found, else None
+            QgsMessageLog.logMessage(f"Layer found: key: {layer_name}, value: {layer}", "EnelAssist", level=Qgis.Info)
 
-        QgsMessageLog.logMessage(f"Layers found with IDs: {layers}", "EnelAssist", level=Qgis.Info)
+        # QgsMessageLog.logMessage(f"Layers found with IDs: {layers}", "EnelAssist", level=Qgis.Info)
 
         return layers
-
 
     def add_layer_to_project(self, layer_path):
         try:
@@ -378,7 +322,7 @@ class PreProcessDialog(QDialog):
             
             # Add the layer to the project with the proper name
             QgsProject.instance().addMapLayer(merged_layer)
-            QgsMessageLog.logMessage(f"Layer added to project with name '{layer_name}': {layer_path}", "EnelAssist", level=Qgis.Info)
+            # QgsMessageLog.logMessage(f"Layer added to project with name '{layer_name}': {layer_path}", "EnelAssist", level=Qgis.Info)
             
         except Exception as e:
             QgsMessageLog.logMessage(f"Error adding layer to project: {e}", "EnelAssist", level=Qgis.Critical)
@@ -386,6 +330,10 @@ class PreProcessDialog(QDialog):
 
     # Geometry Calculation for X, Y, Z, and M coords
     def calculate_geometry(self, layer, x=None, y=None, z=None, m=None, start_x=None, start_y=None, end_x=None, end_y=None):
+        if layer is None:
+            QgsMessageLog.logMessage(f"Layer not found - calc geometry: {layer}", "EnelAssist", level=Qgis.Warning)
+            return False
+            
         try:
             # Collect existing fields in the layer
             existing_fields = [field.name() for field in layer.fields()]
@@ -409,14 +357,14 @@ class PreProcessDialog(QDialog):
 
             # Prepare expressions
             expressions = {
-                'x': QgsExpression('x($geometry)') if x else None,
-                'y': QgsExpression('y($geometry)') if y else None,
-                'z': QgsExpression('z($geometry)') if z else None,
+                'x': QgsExpression('round(x($geometry), 6)') if x else None,
+                'y': QgsExpression('round(y($geometry), 6)') if y else None,
+                'z': QgsExpression('round(z($geometry), 6)') if z else None,
                 'm': QgsExpression("round(coalesce(m($geometry), 1))") if m else None,
-                'start_x': QgsExpression('x(start_point($geometry))') if start_x else None,
-                'start_y': QgsExpression('y(start_point($geometry))') if start_y else None,
-                'end_x': QgsExpression('x(end_point($geometry))') if end_x else None,
-                'end_y': QgsExpression('y(end_point($geometry))') if end_y else None
+                'start_x': QgsExpression('round(x(start_point($geometry)), 6)') if start_x else None,
+                'start_y': QgsExpression('round(y(start_point($geometry)), 6)') if start_y else None,
+                'end_x': QgsExpression('round(x(end_point($geometry)), 6)') if end_x else None,
+                'end_y': QgsExpression('round(y(end_point($geometry)), 6)') if end_y else None
             }
 
             # Set up the context for expressions
@@ -451,25 +399,31 @@ class PreProcessDialog(QDialog):
 
             # Commit the changes to the layer
             layer.commitChanges()
-            QgsMessageLog.logMessage("Geometry calculation and updates completed successfully.", "GeometryCalc", level=Qgis.Info)
+            # QgsMessageLog.logMessage("Geometry calculation and updates completed successfully.", "GeometryCalc", level=Qgis.Info)
+            return True
 
         except Exception as e:
             QgsMessageLog.logMessage(f"Error in calculate_geometry: {str(e)}", "GeometryCalc", level=Qgis.Critical)
             layer.rollBack()
+            return False
 
 
 
     # Add 'lungime' and 'id' fields
     def add_length_and_id(self, layer, length_field, id_field):
-        QgsMessageLog.logMessage(f"Entered add_length_and_id with layer: {layer.name()} and fields: {length_field}, {id_field}", "EnelAssist", level=Qgis.Info)
+        if layer is None:
+            QgsMessageLog.logMessage(f"Layer not found - add length and id: {layer}", "EnelAssist", level=Qgis.Warning)
+            return False
+        
+        # QgsMessageLog.logMessage(f"Entered add_length_and_id with layer: {layer.name()} and fields: {length_field}, {id_field}", "EnelAssist", level=Qgis.Info)
         try:
-            QgsMessageLog.logMessage(f"Adding length and ID fields for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+            # QgsMessageLog.logMessage(f"Adding length and ID fields for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
 
             # Check if the fields already exist
             existing_fields = [field.name() for field in layer.fields()]
             if all(field in existing_fields for field in [length_field, id_field]):
                 QgsMessageLog.logMessage(f"Fields already exist. Skipping adding length and ID fields for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
-                return
+                return True
 
             layer.startEditing()
             layer.dataProvider().addAttributes([QgsField(length_field, QVariant.Double), QgsField(id_field, QVariant.Int)])
@@ -488,14 +442,21 @@ class PreProcessDialog(QDialog):
                 layer.changeAttributeValue(feature.id(), layer.fields().indexOf(id_field), fid_value)
 
             layer.commitChanges()
+            return True
+        
         except Exception as e:
             QgsMessageLog.logMessage(f"Error in add_length_and_id: {e}", "EnelAssist", level=Qgis.Critical)
+            return False
 
     # Modify 'NOD_NRSTR'
     def modify_nod_nrstr(self, layer):
-        QgsMessageLog.logMessage(f"Entered modify_nod_nrstr with layer: {layer.name()}, {layer}", "EnelAssist", level=Qgis.Info)
+        if layer is None:
+            QgsMessageLog.logMessage(f"Layer not found - modify nod nrstr: {layer}", "EnelAssist", level=Qgis.Warning)
+            return False
+        
+        # QgsMessageLog.logMessage(f"Entered modify_nod_nrstr with layer: {layer.name()}, {layer}", "EnelAssist", level=Qgis.Info)
         try:
-            QgsMessageLog.logMessage(f"Modifying layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+            # QgsMessageLog.logMessage(f"Modifying layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
 
             layer.startEditing()
 
@@ -503,13 +464,13 @@ class PreProcessDialog(QDialog):
             if 'GlobalId' in [field.name() for field in layer.fields()]:
                 layer.dataProvider().deleteAttributes([layer.fields().indexOf('GlobalId')])
                 layer.updateFields()
-                QgsMessageLog.logMessage(f"Removed 'GlobalId' from layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+                # QgsMessageLog.logMessage(f"Removed 'GlobalId' from layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
             
             # Step 2: Add 'id' field if it doesn't exist
             if 'id' not in [field.name() for field in layer.fields()]:
                 layer.dataProvider().addAttributes([QgsField('id', QVariant.Double)])
                 layer.updateFields()
-                QgsMessageLog.logMessage(f"Added 'id' field to layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+                # QgsMessageLog.logMessage(f"Added 'id' field to layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
             
             # Step 3: Populate 'id' field with 'FID' values
             for feature in layer.getFeatures():
@@ -517,27 +478,35 @@ class PreProcessDialog(QDialog):
                 layer.updateFeature(feature)
             
             layer.commitChanges()
-            QgsMessageLog.logMessage(f"Successfully modified layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+            # QgsMessageLog.logMessage(f"Successfully modified layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+            
+            return True
             
         except Exception as e:
             layer.rollBack()  # Rollback any changes if there's an error
             QgsMessageLog.logMessage(f"Error in modify_nod_nrstr: {e}", "EnelAssist", level=Qgis.Critical)
+            return False
 
     # Merge Vector Layers
     def merge_layers(self, layer_list, folder):
-        QgsMessageLog.logMessage(f"Entered merge_layers with layer_list: {layer_list} and folder: {folder}", "EnelAssist", level=Qgis.Info)
+        if not layer_list:
+            QgsMessageLog.logMessage(f"No valid layers found for merging in layer_list: {layer_list}", "EnelAssist", level=Qgis.Warning)
+            return False
+        
+        # QgsMessageLog.logMessage(f"Entered merge_layers with layer_list: {layer_list} and folder: {folder}", "EnelAssist", level=Qgis.Info)
         try:
             # Populating input_layers
-            QgsMessageLog.logMessage(f"Input layers are: {layer_list}", "EnelAssist", level=Qgis.Info)
+            # QgsMessageLog.logMessage(f"Input layers are: {layer_list}", "EnelAssist", level=Qgis.Info)
             if not layer_list:
                 QgsMessageLog.logMessage(f"No valid layers found for merging in layer_list: {layer_list}", "EnelAssist", level=Qgis.Warning)
-                return
+                return False
             
-            QgsMessageLog.logMessage(f"Merging layers: {layer_list}", "EnelAssist", level=Qgis.Info)
+            # QgsMessageLog.logMessage(f"Merging layers: {layer_list}", "EnelAssist", level=Qgis.Info)
+            valid_layers = [layer for layer in layer_list if layer is not None]
             output = os.path.join(self.base_dir, f"{folder}.gpkg")
             if output and not QgsVectorLayer(output, '', 'ogr').isValid():
                 processing.run("qgis:mergevectorlayers", {
-                    'LAYERS': layer_list, 
+                    'LAYERS': valid_layers, 
                     'CRS': 'EPSG:3844', 
                     'OUTPUT': output
                 })
@@ -545,21 +514,28 @@ class PreProcessDialog(QDialog):
                 self.layers = self.get_layers()
             else:
                 QgsMessageLog.logMessage(f"Merge output already exists and is valid: {output}", "EnelAssist", level=Qgis.Info)
+                
+            return True
         except Exception as e:
             QgsMessageLog.logMessage(f"Error in merge_layers: {e}", "EnelAssist", level=Qgis.Critical)
+            return False
 
 
     # Join Attributes by Location
     def join_attributes_by_location(self, input_file, join_file, output_name, method):
-        QgsMessageLog.logMessage(f"Entered join_attributes_by_location with input_file: {input_file}, join_file: {join_file}, output_name: {output_name}, method: {method}", "EnelAssist", level=Qgis.Info)
+        if not input_file or not join_file:
+            QgsMessageLog.logMessage(f"No valid layers found for joining in input_file: {input_file} and join_file: {join_file}", "EnelAssist", level=Qgis.Warning)
+            return False
+        
+        # QgsMessageLog.logMessage(f"Entered join_attributes_by_location with input_file: {input_file}, join_file: {join_file}, output_name: {output_name}, method: {method}", "EnelAssist", level=Qgis.Info)
         try:
             # Check if the layer already exists
             existing_layer = QgsProject.instance().mapLayersByName(output_name)
             if existing_layer:
                 QgsMessageLog.logMessage(f"Layer '{output_name}' already exists. Skipping join.", "EnelAssist", level=Qgis.Info)
-                return
+                return True
 
-            QgsMessageLog.logMessage(f"Joining attributes by location: {input_file} with {join_file}", "EnelAssist", level=Qgis.Info)
+            # QgsMessageLog.logMessage(f"Joining attributes by location: {input_file} with {join_file}", "EnelAssist", level=Qgis.Info)
             output = os.path.join(self.base_dir, f"{output_name}.shp")
             if output:
                 processing.run("qgis:joinattributesbylocation", {
@@ -573,18 +549,25 @@ class PreProcessDialog(QDialog):
                 })
                 self.add_layer_to_project(output)
                 self.layers = self.get_layers()
+                
+            return True
         except Exception as e:
             QgsMessageLog.logMessage(f"Error in join_attributes_by_location: {e}", "EnelAssist", level=Qgis.Critical)
+            return False
 
 
     # Add 'SEI' column and calculate values
-    def add_sei_column(self, layer_name):
+    def add_sei_column(self, layer):
+        if not layer:
+            QgsMessageLog.logMessage(f"No valid layers found for adding SEI column in layer_name: {layer}", "EnelAssist", level=Qgis.Warning)
+            return False
+        
         try:
-            QgsMessageLog.logMessage(f"Adding SEI column for layer: {layer_name}", "EnelAssist", level=Qgis.Info)
-            layer = QgsProject.instance().mapLayersByName(layer_name)[0]
+            # QgsMessageLog.logMessage(f"Adding SEI column for layer: {layer_name}", "EnelAssist", level=Qgis.Info)
+            layer = QgsProject.instance().mapLayersByName(layer)[0]
             if layer.fields().indexOf('SEI') != -1:
-                QgsMessageLog.logMessage(f"SEI column already exists for layer: {layer_name}", "EnelAssist", level=Qgis.Info)
-                return
+                QgsMessageLog.logMessage(f"SEI column already exists for layer: {layer}", "EnelAssist", level=Qgis.Info)
+                return True
             
             layer.startEditing()
             # Add 'SEI' column as text
@@ -602,17 +585,24 @@ class PreProcessDialog(QDialog):
                 layer.changeAttributeValue(feature.id(), layer.fields().indexOf('SEI'), sei_value)
 
             layer.commitChanges()
+            
+            return True
         except Exception as e:
             QgsMessageLog.logMessage(f"Error in add_sei_column: {e}", "EnelAssist", level=Qgis.Critical)
+            return False
 
     # Add 'Join_Count' column
-    def add_join_count_column(self, layer_name):
+    def add_join_count_column(self, layer):
+        if not layer:
+            QgsMessageLog.logMessage(f"No valid layers found for adding Join_Count column in layer_name: {layer}", "EnelAssist", level=Qgis.Warning)
+            return False
+            
         try:
-            QgsMessageLog.logMessage(f"Adding Join_Count column for layer: {layer_name}", "EnelAssist", level=Qgis.Info)
-            layer = QgsProject.instance().mapLayersByName(layer_name)[0]
+            # QgsMessageLog.logMessage(f"Adding Join_Count column for layer: {layer_name}", "EnelAssist", level=Qgis.Info)
+            layer = QgsProject.instance().mapLayersByName(layer)[0]
             if layer.fields().indexOf('Join_Count') != -1:
-                QgsMessageLog.logMessage(f"Join_Count column already exists for layer: {layer_name}", "EnelAssist", level=Qgis.Info)
-                return
+                QgsMessageLog.logMessage(f"Join_Count column already exists for layer: {layer}", "EnelAssist", level=Qgis.Info)
+                return True
             
             layer.startEditing()
             layer.dataProvider().addAttributes([QgsField('Join_Count', QVariant.Int)])
@@ -622,7 +612,9 @@ class PreProcessDialog(QDialog):
                 layer.changeAttributeValue(feature.id(), layer.fields().indexOf('Join_Count'), 1)
 
             layer.commitChanges()
+            return True
         except Exception as e:
-            QgsMessageLog.logMessage(f"Error in add_join_count_column: {e} for layer: {layer_name}", "EnelAssist", level=Qgis.Critical)
+            QgsMessageLog.logMessage(f"Error in add_join_count_column: {e} for layer: {layer}", "EnelAssist", level=Qgis.Critical)
+            return False
 
 
