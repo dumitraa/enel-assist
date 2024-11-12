@@ -83,8 +83,8 @@ class CdParser(BaseParser):
                 observatii="",
                 POINT_X=feature['POINT_X'] if feature['POINT_X'] not in [None, 'NULL', 'nan'] else None,
                 POINT_Y=feature['POINT_Y'] if feature['POINT_Y'] not in [None, 'NULL', 'nan'] else None,
-                POINT_Z=feature['POINT_Z'] if feature['POINT_Z'] not in [None, 'NULL', 'nan'] else None,
-                POINT_M=feature['POINT_M'] if feature['POINT_M'] not in [None, 'NULL', 'nan'] else None
+                POINT_Z=feature['POINT_Z'] if feature['POINT_Z'] not in [None, 'NULL', 'nan'] else 0,
+                POINT_M=feature['POINT_M'] if feature['POINT_M'] not in [None, 'NULL', 'nan'] else 0
             )
             # QgsMessageLog.logMessage(f"Feature {cd_data.denumire} parsed successfully with data {cd_data.to_dict()}", "EnelAssist", level=Qgis.Info)
             self.cd_data.append(cd_data)

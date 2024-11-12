@@ -13,6 +13,7 @@ from .validators.inc_lini import IncLiniParser
 from .validators.deriv_ct import DerivCTParser
 from .validators.leg_noduri import LegNoduriParser
 from .validators.ramuri_noduri import RamuriNoduriParser
+from .validators.ramuri_aux_vrtx import RamuriAuxVrtxParser
 from .validators.nr_str import NrStrParser
 from .validators.leg_nrstr import LegNrstrParser
 
@@ -66,6 +67,8 @@ class ShpProcessor:
                 parser = LegNoduriParser(layer)
             elif layer_name == "RAMURI_NODURI":
                 parser = RamuriNoduriParser(layer)
+            elif layer_name == "RAMURI_AUX_VRTX":
+                parser = RamuriAuxVrtxParser(layer)
             elif layer_name == "LEG_NRSTR":
                 parser = LegNrstrParser(layer)
             elif layer_name == "Numar_Postal":
