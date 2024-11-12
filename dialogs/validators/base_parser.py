@@ -158,7 +158,7 @@ class BaseParser:
 
             # Step 5: Export DataFrame to CSV
             try:
-                df.to_csv(csv_output_path, index=False)
+                df.to_csv(csv_output_path, index=False, encoding='utf-8-sig')
                 QgsMessageLog.logMessage(f"Data successfully exported to {csv_output_path}", "EnelAssist", level=Qgis.Info)
 
             except Exception as e:
