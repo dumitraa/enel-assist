@@ -1,4 +1,4 @@
-from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis
+from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis # type: ignore
 import os
 import pandas as pd
 import traceback
@@ -37,6 +37,8 @@ class BaseParser:
                 value = obj_dict.get(field, None)
                 rule = rule_config.get('rule')
                 required = rule_config.get('required', False)
+                
+                QgsMessageLog.logMessage(f"Validating field {field} with value {value} and rule {rule}", "EnelAssist", level=Qgis.Info)
 
                 # QgsMessageLog.logMessage(f"Validating field {field} with value {value} and rule {rule}", "EnelAssist", level=Qgis.Info)
 

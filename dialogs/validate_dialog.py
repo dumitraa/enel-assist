@@ -1,6 +1,6 @@
 import os
 
-from qgis.core import QgsVectorLayer, QgsProject, QgsMessageLog
+from qgis.core import QgsVectorLayer, QgsProject, QgsMessageLog # type: ignore
 from PyQt5.QtWidgets import QComboBox, QLineEdit, QCheckBox, QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QFrame
 import PyQt5.QtWidgets as QtWidgets
 from PyQt5.QtCore import Qt

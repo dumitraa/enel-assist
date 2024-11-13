@@ -1,6 +1,6 @@
 from typing import Dict, Any, List
-import qgis
-from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis
+import qgis # type: ignore
+from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis # type: ignore
 iface = qgis.utils.iface
 
 from .base_parser import BaseParser

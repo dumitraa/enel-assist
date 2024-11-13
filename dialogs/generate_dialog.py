@@ -26,7 +26,7 @@ class GenerateExcelDialog(QDialog):
         # Directory prompt for saving Excel files
         output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
         if not output_dir:
-            return  # If user cancels, do nothing
+            return
 
         total_parsers = len(self.processor.parsers)
         self.progress_bar.setRange(0, total_parsers)
@@ -36,7 +36,15 @@ class GenerateExcelDialog(QDialog):
             self.progress_bar.setValue(i + 1)  # Update progress for each parser processed
 
         # Notify user when all exports are complete
-        QMessageBox.information(self, "Complete", "Excel file generation completed!")
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Information)
+        msg_box.setWindowTitle("Complete")
+        msg_box.setText("Excel file generation completed!")
+        msg_box.setStandardButtons(QMessageBox.Ok)
+
+        # Show the dialog and wait for the user's response
+        if msg_box.exec_() == QMessageBox.Ok:
+            self.close()  # Close the plugin dialog        
 
                 
     def process_data(self):

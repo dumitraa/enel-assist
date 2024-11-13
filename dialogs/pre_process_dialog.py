@@ -73,12 +73,12 @@ STEP 12. for each Join Attributes by Location - add Join_Count column with all v
 """
 
 import os
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QProgressBar, QPushButton, QFileDialog, QLabel, QListWidget, QListWidgetItem, QApplication
-from qgis.core import (QgsExpression, QgsExpressionContext, QgsExpressionContextUtils, 
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QProgressBar, QPushButton, QFileDialog, QLabel, QListWidget, QListWidgetItem, QApplication, QMessageBox
+from qgis.core import (QgsExpression, QgsExpressionContext, QgsExpressionContextUtils,  # type: ignore
                        QgsField, QgsProject, QgsMessageLog, Qgis, QgsVectorLayer)
-from qgis.PyQt.QtGui import QColor, QFont
-from qgis.PyQt.QtCore import QVariant, Qt
-import processing
+from qgis.PyQt.QtGui import QColor, QFont # type: ignore
+from qgis.PyQt.QtCore import QVariant, Qt # type: ignore
+import processing # type: ignore
 
 class PreProcessDialog(QDialog):
     
@@ -135,14 +135,34 @@ class PreProcessDialog(QDialog):
         self.progress_bar = QProgressBar(self)
         self.layout.addWidget(self.progress_bar)
 
+        self.btn_layout = QHBoxLayout()
+        
         self.run_button = QPushButton("Run", self)
         self.run_button.clicked.connect(self.__exec__)
-        self.layout.addWidget(self.run_button)
-
+        self.btn_layout.addWidget(self.run_button)
+        
+        self.close_button = QPushButton("Close", self)
+        self.close_button.clicked.connect(self.close)
+        self.btn_layout.addWidget(self.close_button)
+        self.layout.addLayout(self.btn_layout)
+        
         self.setLayout(self.layout)
 
     def __exec__(self):
         QgsMessageLog.logMessage("Starting data preprocessing...", "EnelAssist", level=Qgis.Info)
+        
+        # error-checking: no layers present, show a DIALOG BOX with the error message
+        if not QgsProject.instance().mapLayers().values():
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Warning)
+            msg_box.setWindowTitle("Error")
+            msg_box.setText("No layers are present in the project.")
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            
+            if msg_box.exec_() == QMessageBox.Ok:
+                self.close()
+            return
+        
         # Automated layer retrieval
         self.layers = self.get_layers()
         if not self.layers:
@@ -155,11 +175,16 @@ class PreProcessDialog(QDialog):
         self.progress_bar.setMaximum(total_steps)
         step = 0
         self.base_dir = QFileDialog.getExistingDirectory(None, "Select Folder")
+        if not self.base_dir:
+            return
         os.makedirs(self.base_dir, exist_ok=True)  # Ensure directory exists
 
         # Execute all processing steps
         QgsMessageLog.logMessage("-------- START OF DATA PREPROCESSING --------", "EnelAssist", level=Qgis.Info)
-
+        
+        self.run_button.setEnabled(False)
+        self.close_button.setEnabled(False)
+        
         # 1. Calculate X. Y for layers
         for layer in self.layers.values():
             # QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
@@ -263,6 +288,8 @@ class PreProcessDialog(QDialog):
         step += 1
         # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
         self.progress_bar.setValue(step)
+        
+        self.close_button.setEnabled(True)
 
 
     def update_step(self, index, success=True):
