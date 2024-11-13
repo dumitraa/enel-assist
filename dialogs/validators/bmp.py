@@ -50,7 +50,7 @@ class BMP:
 
 class BMPParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
-        super().__init__(layer, "BMPnou")
+        super().__init__(layer, "4BMPnou")
         
         self.column_names = ['denumire', 'serie_cont', 'serie_con2', 'serie_con3', 'serie_con4', 'serie_con5', 'stare_cone', 'cod_societ', 'cod_zona', 'nr_nod', 'serie_nod', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
 
@@ -76,7 +76,7 @@ class BMPParser(BaseParser):
         # Retrieve the layer named "bmp" from the current QGIS project
         self.layer = None
         for layer in QgsProject.instance().mapLayers().values():
-            if layer.name() == "BMPnou":
+            if layer.name() == "4BMPnou":
                 self.layer = layer
                 break
 
@@ -107,7 +107,7 @@ class BMPParser(BaseParser):
                 POINT_Z=feature['POINT_Z'] if feature['POINT_Z'] not in [None, 'NULL', 'nan'] else 0,
                 POINT_M=feature['POINT_M'] if feature['POINT_M'] not in [None, 'NULL', 'nan'] else 0
             )
-            # QgsMessageLog.logMessage(f"Feature {bmp_data.denumire} parsed successfully with data {bmp_data.to_dict()}", "EnelAssist", level=Qgis.Info)
+            QgsMessageLog.logMessage(f"Feature {bmp_data.denumire} parsed successfully with data {bmp_data.to_dict()}", "EnelAssist", level=Qgis.Info)
             self.bmp_data.append(bmp_data)
             
         self.data = self.bmp_data

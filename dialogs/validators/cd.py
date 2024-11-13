@@ -44,7 +44,7 @@ class Cd:
 
 class CdParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
-        super().__init__(layer, "Cutii")
+        super().__init__(layer, "2Cutii")
         
         self.column_names = ['denumire', 'tip_aparat', 'stare_cone', 'cod_societ', 'cod_zona', 'nr_nod', 'serie_nod', 'observatii', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
 
@@ -58,7 +58,7 @@ class CdParser(BaseParser):
         # Retrieve the layer named "cd" from the current QGIS project
         self.layer = None
         for layer in QgsProject.instance().mapLayers().values():
-            if layer.name() == "Cutii":
+            if layer.name() == "2Cutii":
                 self.layer = layer
                 break
 

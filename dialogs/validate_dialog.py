@@ -18,8 +18,6 @@ from .validators.nr_str import NrStrParser
 from .validators.leg_nrstr import LegNrstrParser
 
 
-
-
 class ShpProcessor:
     '''
     Class to process the shapefile (SHP) layers, validate them, and work with them in QGIS.
@@ -53,25 +51,25 @@ class ShpProcessor:
             layer_name = layer.name()
             # parse layers accordinging - AUXILIAR, Cutii (CD), InceputLinie, LEG_NODURI, LEG_NRSTR, Numar_Postal, RAMURI_NODURI, BMPnou, Stalpi (DerivCt)
             
-            if layer_name == "AUXILIAR":
+            if layer_name.endswith("AUXILIAR"):
                 parser = AuxiliarParser(layer)
-            elif layer_name == "BMPnou":
+            elif layer_name.endswith("BMPnou"):
                 parser = BMPParser(layer)
-            elif layer_name == "Cutii":
+            elif layer_name.endswith("Cutii"):
                 parser = CdParser(layer)
-            elif layer_name == "InceputLinie":
+            elif layer_name.endswith("InceputLinie"):
                 parser = IncLiniParser(layer)
-            elif layer_name == "Stalpi":
+            elif layer_name.endswith("Stalpi"):
                 parser = DerivCTParser(layer)
-            elif layer_name == "LEG_NODURI":
+            elif layer_name.endswith("LEG_NODURI"):
                 parser = LegNoduriParser(layer)
-            elif layer_name == "RAMURI_NODURI":
+            elif layer_name.endswith("RAMURI_NODURI"):
                 parser = RamuriNoduriParser(layer)
-            elif layer_name == "RAMURI_AUX_VRTX":
+            elif layer_name.endswith("RAMURI_AUX_VRTX"):
                 parser = RamuriAuxVrtxParser(layer)
-            elif layer_name == "LEG_NRSTR":
+            elif layer_name.endswith("LEG_NRSTR"):
                 parser = LegNrstrParser(layer)
-            elif layer_name == "Numar_Postal":
+            elif layer_name.endswith("Numar_Postal"):
                 parser = NrStrParser(layer)
             else:
                 parser = None

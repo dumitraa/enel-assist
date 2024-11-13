@@ -1,5 +1,5 @@
 """
-- LAYERS NEEDED - ['InceputLinie', 'Cutii', 'Stalpi', 'BMPnou', 'ReteaJT', 'NOD_NRSTR', 'AUXILIAR', 'pct_vrtx', "Numar_Postal", "Coloana"]
+- LAYERS NEEDED - ['1InceputLinie', '2Cutii', '3Stalpi', '4BMPnou', 'ReteaJT', 'NOD_NRSTR', '5AUXILIAR', '6pct_vrtx', "Numar_Postal", "Coloana"]
 
 
 STEP 1. Calculate geometry for all shp files - X, Y coord line start and end
@@ -31,7 +31,7 @@ STEP 2. ReteaJT - Add 'lungime', 'id' columns - double
 STEP 3. NOD_NRSTR - Add 'id' - double, Delete GlobalId (raman doar ID si FID)
     > id - field calculator - FID - OK
     
-STEP 4 - Merge Vector Layers - InceputLinie / Cutii / Stalpi / BMPnou > folder - NODURI
+STEP 4 - Merge Vector Layers - 1InceputLinie / 2Cutii / 3Stalpi / 4BMPnou > folder - NODURI
 STEP 5 - Merge Vector Layers - ReteaJT > folder - RAMURI
 
     > Use qgis:mergevectorlayers from the QGIS Processing Toolbox.
@@ -43,7 +43,7 @@ STEP 5 - Merge Vector Layers - ReteaJT > folder - RAMURI
             })
 
 STEP 6. Join Attributes by Location - RAMURI > NODURI - ONE TO MANY > RAMURI_NODURI
-STEP 7. Join Attributes by Location - NOD_NRSTR > BMPnou - ONE TO ONE > LEG_NODURI
+STEP 7. Join Attributes by Location - NOD_NRSTR > 4BMPnou - ONE TO ONE > LEG_NODURI
 STEP 8. Join Attributes by Location - NOD_NRSTR > Numar_Postal - ONE TO ONE > LEG_NRSTR
     
     > Use qgis:joinattributesbylocation for spatial joins.
@@ -58,7 +58,7 @@ STEP 8. Join Attributes by Location - NOD_NRSTR > Numar_Postal - ONE TO ONE > LE
                 'OUTPUT': '/path/to/output.shp'
             })
             
-STEP 9. Merge Vector Layers - InceputLinie, Cutii, Stalpi, BMPnou, AUXILIAR, pct_vrtx > folder - NODURI_AUX_VRTX
+STEP 9. Merge Vector Layers - 1InceputLinie, 2Cutii, 3Stalpi, 4BMPnou, 5AUXILIAR, 6pct_vrtx > folder - NODURI_AUX_VRTX
 
 STEP 10. Join Attributes by Location - ramuri > noduri_aux_vrtx - ONE TO MANY > RAMURI_AUX_VRTX
 
@@ -80,14 +80,14 @@ from qgis.PyQt.QtGui import QColor, QFont
 from qgis.PyQt.QtCore import QVariant, Qt
 import processing
 
-from .validate_dialog import ShpProcessor
-
 class PreProcessDialog(QDialog):
     
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Preprocess Data")
         self.layout = QVBoxLayout()
+        
+        self.update_layer_names() # Rename layers to match the expected names
         
         # Label
         self.progress_text = QLabel("Steps to do:")
@@ -166,7 +166,7 @@ class PreProcessDialog(QDialog):
             if layer is not None and layer.name() in ["ReteaJT", "NOD_NRSTR"]:
                 # QgsMessageLog.logMessage(f"Skipping layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
                 continue
-            elif layer is not None and layer.name() in ["pct_vrtx"]:
+            elif layer is not None and layer.name() in ["6pct_vrtx"]:
                 success = self.calculate_geometry(layer, "POINT_X", "POINT_Y")
                 step += 1
                 self.progress_bar.setValue(step)
@@ -201,7 +201,7 @@ class PreProcessDialog(QDialog):
         self.progress_bar.setValue(step)
 
         # 5. Merge layers for NODURI
-        success = self.merge_layers([self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou']], 'NODURI')
+        success = self.merge_layers([self.layers['1InceputLinie'], self.layers['2Cutii'], self.layers['3Stalpi'], self.layers['4BMPnou']], 'NODURI')
         self.update_step(4, success)  # Mark step 5 as done
         step += 1
         self.progress_bar.setValue(step)
@@ -219,7 +219,7 @@ class PreProcessDialog(QDialog):
         self.progress_bar.setValue(step)
 
         # 8. Join Attributes by Location - LEG_NODURI
-        success = self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['BMPnou'], 'LEG_NODURI', 'One-to-One')
+        success = self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['4BMPnou'], 'LEG_NODURI', 'One-to-One')
         self.update_step(7, success)  # Mark step 8 as done
         step += 1
         self.progress_bar.setValue(step)
@@ -231,7 +231,7 @@ class PreProcessDialog(QDialog):
         self.progress_bar.setValue(step)
 
         # 10. Merge layers for NODURI_AUX_VRTX
-        success = self.merge_layers([self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou'], self.layers['AUXILIAR'], self.layers['pct_vrtx']], 'NODURI_AUX_VRTX')
+        success = self.merge_layers([self.layers['1InceputLinie'], self.layers['2Cutii'], self.layers['3Stalpi'], self.layers['4BMPnou'], self.layers['5AUXILIAR'], self.layers['6pct_vrtx']], 'NODURI_AUX_VRTX')
         self.update_step(9, success)  # Mark step 10 as done
         step += 1
         self.progress_bar.setValue(step)
@@ -291,7 +291,7 @@ class PreProcessDialog(QDialog):
         Get layers by name from the QGIS project and add them to self.layers
         '''
         layers = {}
-        layer_names = ['InceputLinie', 'Cutii', 'Stalpi', 'BMPnou', 'ReteaJT', 'NOD_NRSTR', 'AUXILIAR', 'pct_vrtx', "Numar_Postal", "NODURI", "RAMURI", "RAMURI_NODURI", "LEG_NODURI", "NODURI_AUX_VRTX", "RAMURI_AUX_VRTX", "LEG_NRSTR", "Coloana"]
+        layer_names = ['1InceputLinie', '2Cutii', '3Stalpi', '4BMPnou', 'ReteaJT', 'NOD_NRSTR', '5AUXILIAR', '6pct_vrtx', "Numar_Postal", "NODURI", "RAMURI", "RAMURI_NODURI", "LEG_NODURI", "NODURI_AUX_VRTX", "RAMURI_AUX_VRTX", "LEG_NRSTR", "Coloana"]
 
         # Get all layers in the current QGIS project (keep the layer objects)
         qgis_layers = QgsProject.instance().mapLayers().values()
@@ -304,8 +304,35 @@ class PreProcessDialog(QDialog):
             QgsMessageLog.logMessage(f"Layer found: key: {layer_name}, value: {layer}", "EnelAssist", level=Qgis.Info)
 
         # QgsMessageLog.logMessage(f"Layers found with IDs: {layers}", "EnelAssist", level=Qgis.Info)
-
         return layers
+    
+    def update_layer_names(self):
+        '''
+        Rename layer names - 1InceputLinie = 11InceputLinie, 2Cutii = 22Cutii, 3Stalpi = 33Stalpi, 4BMPnou = 44BMPnou, 5AUXILIAR = 55AUXILIAR, 6pct_vrtx = 66pct_vrtx
+        '''
+        
+        # Get all layers in the current QGIS project
+        qgis_layers = QgsProject.instance().mapLayers().values()
+        # QgsMessageLog.logMessage(f"----------- QGIS LAYERS: {qgis_layers}", "EnelAssist", level=Qgis.Info)
+        
+        # Iterate through the actual layer objects
+        for layer in qgis_layers:
+            layer_name = layer.name()
+            if layer_name.endswith('InceputLinie'):
+                layer.setName('1InceputLinie')
+            elif layer_name.endswith('Cutii'):
+                layer.setName('2Cutii')
+            elif layer_name.endswith('Stalpi'):
+                layer.setName('3Stalpi')
+            elif layer_name.endswith('BMPnou'):
+                layer.setName('4BMPnou')
+            elif layer_name.endswith('AUXILIAR'):
+                layer.setName('5AUXILIAR')
+            elif layer_name.endswith('pct_vrtx'):
+                layer.setName('6pct_vrtx')
+            else:
+                pass
+            # QgsMessageLog.logMessage(f"Layer renamed: {layer_name}", "EnelAssist", level=Qgis.Info)
 
     def add_layer_to_project(self, layer_path):
         try:
@@ -553,6 +580,41 @@ class PreProcessDialog(QDialog):
             return True
         except Exception as e:
             QgsMessageLog.logMessage(f"Error in join_attributes_by_location: {e}", "EnelAssist", level=Qgis.Critical)
+            return False
+
+
+    # Add 'NR.CRT' column and calculate values (start with one, increment by one)
+    def add_nr_crt_column(self, layer):
+        if not layer:
+            QgsMessageLog.logMessage(f"No valid layers found for adding NR.CRT column in layer_name: {layer}", "EnelAssist", level=Qgis.Warning)
+            return False
+        
+        try:
+            layer = QgsProject.instance().mapLayersByName(layer)[0]
+            if layer.fields().indexOf('NR.CRT') != -1:
+                QgsMessageLog.logMessage(f"NR.CRT column already exists for layer: {layer}", "EnelAssist", level=Qgis.Info)
+                return True
+            
+            layer.startEditing()
+            # Add 'NR.CRT' column as integer
+            layer.dataProvider().addAttributes([QgsField('NR.CRT', QVariant.Int)])
+            layer.updateFields()
+            
+            # Expression to add the incremental values
+            nr_crt_expr = QgsExpression(' $id + 1 ')
+            context = QgsExpressionContext()
+            context.appendScopes(QgsExpressionContextUtils.globalProjectLayerScopes(layer))
+            
+            for feature in layer.getFeatures():
+                context.setFeature(feature)
+                nr_crt_value = nr_crt_expr.evaluate(context)
+                layer.changeAttributeValue(feature.id(), layer.fields().indexOf('NR.CRT'), nr_crt_value)
+                
+            layer.commitChanges()
+            return True
+        
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error in add_nr_crt_column: {e}", "EnelAssist", level=Qgis.Critical)
             return False
 
 

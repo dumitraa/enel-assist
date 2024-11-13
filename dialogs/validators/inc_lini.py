@@ -42,7 +42,7 @@ class IncLini:
 
 class IncLiniParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
-        super().__init__(layer, "InceputLinie")
+        super().__init__(layer, "1InceputLinie")
         
         self.column_names = ['denumire', 'stare_cone', 'cod_societ', 'cod_zona', 'nr_nod', 'serie_nod', 'observatii', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
 
@@ -80,7 +80,7 @@ class IncLiniParser(BaseParser):
         # Retrieve the layer named "inclini" from the current QGIS project
         self.layer = None
         for layer in QgsProject.instance().mapLayers().values():
-            if layer.name() == "InceputLinie":
+            if layer.name() == "1InceputLinie":
                 self.layer = layer
                 break
 

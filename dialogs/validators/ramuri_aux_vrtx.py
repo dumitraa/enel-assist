@@ -43,7 +43,7 @@ class RamuriAuxVrtxParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
         super().__init__(layer, "RAMURI_NODURI")
         
-        self.column_names = ['FID', 'TARGET_FID', 'START_X', 'START_Y', 'nr_nod', 'END_X', 'END_Y', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M', 'SEI']
+        self.column_names = ['FID', 'TARGET_FID', 'START_X', 'START_Y', 'END_X', 'END_Y', 'nr_nod', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M', 'SEI']
 
         self.validation_rules: Dict[str, Any] = {
             'internal_id': {

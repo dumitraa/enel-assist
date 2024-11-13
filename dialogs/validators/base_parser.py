@@ -42,21 +42,18 @@ class BaseParser:
 
                 # Check if the field is required but missing
                 if value is None and required:
-                    append_error(obj, field, f"Câmpul trebuie să fie completat!", rule)
+                    append_error(obj, field, f"Câmpul {field} trebuie să fie completat!", rule)
                     continue
-
                 # Type validation: Check if value is a string
-                if rule == "str" and value is not None and not isinstance(value, str):
+                elif rule == "str" and value is not None and not isinstance(value, str):
                     append_error(obj, field, f"Valoarea '{value}' nu este de tip text", rule)
                     # QgsMessageLog.logMessage(f"Field {field} with value {value} is not of type 'str'", "EnelAssist", level=Qgis.Warning)
-
                 # Type validation: Check if value is an integer
-                if rule == "int" and value is not None and not isinstance(value, int):
+                elif rule == "int" and value is not None and not isinstance(value, int):
                     append_error(obj, field, f"Valoarea '{value}' nu este de tip număr întreg", rule)
                     # QgsMessageLog.logMessage(f"Field {field} with value {value} is not of type 'int'", "EnelAssist", level=Qgis.Warning)
-
                 # List validation: Check if value is in a list of valid values
-                if isinstance(rule, list) and value is not None and value not in rule:
+                elif isinstance(rule, list) and value is not None and value not in rule:
                     append_error(obj, field, f"Valoarea '{value}' nu este în lista de valori posibile", rule)
                     # QgsMessageLog.logMessage(f"Field {field} with value {value} is not in the list of valid values", "EnelAssist", level=Qgis.Warning)
 

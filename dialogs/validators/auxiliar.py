@@ -32,7 +32,7 @@ class Auxiliar:
 
 class AuxiliarParser(BaseParser):
     def __init__(self, layer: QgsVectorLayer):
-        super().__init__(layer, "AUXILIAR")
+        super().__init__(layer, "5AUXILIAR")
         
         self.column_names = ['denumire', 'observatii', 'POINT_X', 'POINT_Y', 'POINT_Z', 'POINT_M']
 
@@ -46,7 +46,7 @@ class AuxiliarParser(BaseParser):
         # Retrieve the layer named "auxiliar" from the current QGIS project
         self.layer = None
         for layer in QgsProject.instance().mapLayers().values():
-            if layer.name() == "AUXILIAR":
+            if layer.name() == "5AUXILIAR":
                 self.layer = layer
                 break
 
