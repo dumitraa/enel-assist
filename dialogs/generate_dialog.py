@@ -1,6 +1,6 @@
 import os
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QProgressBar, QPushButton, QFileDialog, QMessageBox
-from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis
+from qgis.core import QgsProject, QgsVectorLayer, QgsMessageLog, Qgis # type: ignore
 
 from .validate_dialog import ShpProcessor
 

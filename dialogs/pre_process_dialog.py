@@ -85,9 +85,13 @@ class PreProcessDialog(QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Preprocess Data")
+
+        # Set fixed dimensions for the window
+        self.setFixedSize(500, 350)  # Example dimensions: 600x400 pixels
+
         self.layout = QVBoxLayout()
-        
-        self.update_layer_names() # Rename layers to match the expected names
+
+        self.update_layer_names()  # Rename layers to match the expected names
         
         # Label
         self.progress_text = QLabel("Steps to do:")
@@ -98,13 +102,13 @@ class PreProcessDialog(QDialog):
         
         self.steps_list.setStyleSheet("""
             QListWidget::item {
-                color: black;  # Keep text color normal (change to white for dark mode)
+                color: black;  # Keep text color black
                 background-color: #f0f0f0;  # Default background for light mode
             }
             QListWidget::item:selected {
                 background-color: #d0e0f0;  # Slightly different background for selected items
             }
-        """)  # This makes sure that the list looks normal even when disabled.
+        """)
 
         # Define the steps
         self.steps = [
@@ -120,7 +124,8 @@ class PreProcessDialog(QDialog):
             "10. Uneste straturile pentru NODURI_AUX_VRTX",
             "11. Join Attributes by Location - RAMURI_AUX_VRTX",
             "12. Adauga coloana 'SEI' pentru RAMURI_AUX_VRTX",
-            "13. Adauga coloana 'Join_Count' pentru toate join-urile"
+            "13. Adauga coloana 'Join_Count' pentru toate join-urile",
+            "14. Sorteaza 'LEG_NRSTR' si 'LEG_NODURI' dupa 'ID'"
         ]
 
         # Add steps to the list, making them non-interactive
@@ -171,7 +176,7 @@ class PreProcessDialog(QDialog):
         
         # Update progress bar
         layers_valid = [layer for layer in self.layers.values() if layer is not None]
-        total_steps = 12 + len(layers_valid) - 2# Total number of processing steps
+        total_steps = len(self.steps) - 1 + len(layers_valid) - 2 # Total number of processing steps
         self.progress_bar.setMaximum(total_steps)
         step = 0
         self.base_dir = QFileDialog.getExistingDirectory(None, "Select Folder")
@@ -289,8 +294,21 @@ class PreProcessDialog(QDialog):
         # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
         self.progress_bar.setValue(step)
         
+        # 14. Sort "LEG_NRSTR" and "LEG_NODURI" by "ID"
+        success1 = self.sort_layer_by_field(self.layers['LEG_NRSTR'], 'ID')
+        success2 = self.sort_layer_by_field(self.layers['LEG_NODURI'], 'ID')
+        
+        if success1 and success2:
+            success = True
+        elif success1 is False or success2 is False:
+            success = None
+        else:
+            success = False
+        self.update_step(13, success)  # Mark step 14 as done
+        step += 1
+        self.progress_bar.setValue(step)
+        
         self.close_button.setEnabled(True)
-
 
     def update_step(self, index, success=True):
         """Marks a step as done by updating the list item."""
@@ -706,4 +724,33 @@ class PreProcessDialog(QDialog):
             QgsMessageLog.logMessage(f"Error in add_join_count_column: {e} for layer: {layer}", "EnelAssist", level=Qgis.Critical)
             return False
 
+    def sort_layer_by_field(self, layer, field):
+        if layer is None:
+            QgsMessageLog.logMessage(f"Layer not found - sort by field: {layer}", "EnelAssist", level=Qgis.Warning)
+            return False
+
+        # Check if the field exists in the layer
+        if field not in [f.name() for f in layer.fields()]:
+            QgsMessageLog.logMessage(f"Field '{field}' not found in layer fields.", "EnelAssist", level=Qgis.Warning)
+            return False
+
+        try:
+            # Fetch features sorted by the specified field
+            sorted_features = sorted(layer.getFeatures(), key=lambda f: f[field])
+
+            # Start editing the layer
+            layer.startEditing()
+            
+            # Delete all current features
+            layer.deleteFeatures([feat.id() for feat in layer.getFeatures()])
+
+            # Add sorted features back to the layer
+            layer.addFeatures(sorted_features)
+            layer.commitChanges()
+
+            QgsMessageLog.logMessage(f"Layer sorted by field '{field}' successfully.", "EnelAssist", level=Qgis.Info)
+            return True
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error in sort_layer_by_field: {e}", "EnelAssist", level=Qgis.Critical)
+            return False
 
