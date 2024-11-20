@@ -20,6 +20,8 @@ STEP 1. Calculate geometry for all shp files - X, Y coord line start and end
                 layer.changeAttributeValue(feature.id(), index, value)
             layer.commitChanges()
 
+STEP 2. Calculate geometry for ReteaJT - START_X, START_Y, END_X, END_Y
+
 STEP 2. ReteaJT - Add 'lungime', 'id' columns - double
     > calculate length in "lungime" - length($geometry)
     > id - field calculator - FID - OK
@@ -123,9 +125,10 @@ class PreProcessDialog(QDialog):
             "9. Join Attributes by Location - LEG_NRSTR",
             "10. Uneste straturile pentru NODURI_AUX_VRTX",
             "11. Join Attributes by Location - RAMURI_AUX_VRTX",
-            "12. Adauga coloana 'SEI' pentru RAMURI_AUX_VRTX",
-            "13. Adauga coloana 'Join_Count' pentru toate join-urile",
-            "14. Sorteaza 'LEG_NRSTR' si 'LEG_NODURI' dupa 'ID'"
+            "12. Adauga coloana 'Count_ID' pentru 'RAMURI_AUX_VRTX'",
+            "13. Adauga coloana 'SEI' pentru RAMURI_AUX_VRTX",
+            "14. Adauga coloana 'Join_Count' pentru toate join-urile",
+            "15. Sorteaza 'LEG_NRSTR' si 'LEG_NODURI' dupa 'ID'"
         ]
 
         # Add steps to the list, making them non-interactive
@@ -190,7 +193,7 @@ class PreProcessDialog(QDialog):
         self.run_button.setEnabled(False)
         self.close_button.setEnabled(False)
         
-        #NOTE 2. Calculate X. Y for layers
+        #NOTE 1. Calculate X. Y for layers
         for layer in self.layers.values():
             # QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
             if layer is not None and layer.name() in ["ReteaJT", "NOD_NRSTR"]:
@@ -209,21 +212,21 @@ class PreProcessDialog(QDialog):
         self.update_step(0, success)  # Mark step 1 as done
             
             
-        #NOTE 3. Calculate START_X, START_Y, END_X, END_Y for ReteaJT
+        #NOTE 2. Calculate START_X, START_Y, END_X, END_Y for ReteaJT
         success = self.calculate_geometry(self.layers["ReteaJT"], None, None, None, None, 'START_X', 'START_Y', 'END_X', 'END_Y')
         # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
         step += 1
         self.progress_bar.setValue(step)
         self.update_step(1, success)  # Mark step 2 as done
 
-        #NOTE 4. Add 'lungime' and 'id' columns to ReteaJT and calculate geometry length
-        success = self.add_length_and_id(self.layers['ReteaJT'], 'lungime_', 'id_')
+        #NOTE 3. Add 'lungime' and 'id' columns to ReteaJT and calculate geometry length
+        success = self.add_length_and_id(self.layers['ReteaJT'], 'lungime_', 'TARGET_FID')
         self.update_step(2, success)  # Mark step 3 as done
         # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
         step += 1
         self.progress_bar.setValue(step)
 
-        #NOTE 5. Manage NOD_NRSTR columns
+        #NOTE 4. Manage NOD_NRSTR columns
         success = self.modify_nod_nrstr(self.layers['NOD_NRSTR'])
         self.update_step(3, success)  # Mark step 4 as done
         # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
@@ -262,27 +265,29 @@ class PreProcessDialog(QDialog):
 
         #NOTE 10. Merge layers for NODURI_AUX_VRTX
         success = self.merge_layers([self.layers['1InceputLinie'], self.layers['2Cutii'], self.layers['3Stalpi'], self.layers['4BMPnou'], self.layers['5AUXILIAR'], self.layers['6pct_vrtx']], 'NODURI_AUX_VRTX')
-        # if success:
-        #     self.add_fid_column(self.layers['NODURI_AUX_VRTX'].name())
         self.update_step(9, success)  # Mark step 10 as done
         step += 1
         self.progress_bar.setValue(step)
 
         #NOTE 11. Join Attributes by Location - RAMURI_AUX_VRTX
-        success = self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI_AUX_VRTX'], 'RAMURI_AUX_VRTX', 'One-to-Many')
-        # if success:
-        #     self.add_fid_column(self.layers['RAMURI_AUX_VRTX'].name())
+        success = self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI_AUX_VRTX'], 'RAMURI_AUX_VRTX', 'One-to-Many') #TODO: summarize - what is not 2 - another column
         self.update_step(10, success)  # Mark step 11 as done
         step += 1
         self.progress_bar.setValue(step)
-
-        #NOTE 12. Add 'SEI' column with conditional values
-        success = self.add_sei_column(self.layers['RAMURI_AUX_VRTX'].name())
+        
+        #NOTE 12. Add 'Count_ID' for 'RAMURI_AUX_VRTX' - how many of each 'TARGET_FID' are there - identical
+        success = self.add_count_id_column(self.layers['RAMURI_AUX_VRTX'].name())
         self.update_step(11, success)  # Mark step 12 as done
         step += 1
         self.progress_bar.setValue(step)
 
-        #NOTE 13. Add 'Join_Count' column for all joins with value '1'
+        #NOTE 13. Add 'SEI' column with conditional values
+        success = self.add_sei_column(self.layers['RAMURI_AUX_VRTX'].name())
+        self.update_step(12, success)  # Mark step 12 as done
+        step += 1
+        self.progress_bar.setValue(step)
+
+        #NOTE 14. Add 'Join_Count' column for all joins with value '1'
         success1 = self.add_join_count_column(self.layers['RAMURI_NODURI'].name())
         success2 = self.add_join_count_column(self.layers['LEG_NODURI'].name())
         success3 = self.add_join_count_column(self.layers['LEG_NRSTR'].name())
@@ -293,12 +298,12 @@ class PreProcessDialog(QDialog):
             success = None
         else:
             success = False
-        self.update_step(12, success)  # Mark step 13 as done
+        self.update_step(13, success)  # Mark step 13 as done
         step += 1
         # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
         self.progress_bar.setValue(step)
         
-        #NOTE 14. Sort "LEG_NRSTR" and "LEG_NODURI" by "ID"
+        #NOTE 15. Sort "LEG_NRSTR" and "LEG_NODURI" by "ID"
         success1 = self.sort_layer_by_field(self.layers['LEG_NRSTR'], 'ID')
         success2 = self.sort_layer_by_field(self.layers['LEG_NODURI'], 'ID')
         
@@ -308,7 +313,7 @@ class PreProcessDialog(QDialog):
             success = None
         else:
             success = False
-        self.update_step(13, success)  # Mark step 14 as done
+        self.update_step(14, success)  # Mark step 14 as done
         step += 1
         self.progress_bar.setValue(step)
         
@@ -700,6 +705,51 @@ class PreProcessDialog(QDialog):
         except Exception as e:
             QgsMessageLog.logMessage(f"Error in add_sei_column: {e}", "EnelAssist", level=Qgis.Critical)
             return False
+        
+    def add_count_id_column(self, layer_name):
+        if not layer_name:
+            QgsMessageLog.logMessage(f"No valid layers found for adding Count_ID column in layer_name: {layer_name}", "EnelAssist", level=Qgis.Warning)
+            return False
+
+        try:
+            layer = QgsProject.instance().mapLayersByName(layer_name)[0]
+            if not layer:
+                QgsMessageLog.logMessage(f"Layer {layer_name} not found!", "EnelAssist", level=Qgis.Critical)
+                return False
+
+            if layer.fields().indexOf('Count_ID') != -1:
+                QgsMessageLog.logMessage(f"Count_ID column already exists for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+                return True
+
+            # Add the Count_ID field
+            layer.startEditing()
+            layer.dataProvider().addAttributes([QgsField('Count_ID', QVariant.Int)])
+            layer.updateFields()
+
+            # Create a dictionary to count occurrences of each TARGET_FID
+            target_fid_counts = {}
+
+            # Populate the dictionary with counts
+            for feature in layer.getFeatures():
+                target_fid = feature['TARGET_FID']
+                if target_fid not in target_fid_counts:
+                    target_fid_counts[target_fid] = 0
+                target_fid_counts[target_fid] += 1
+
+            # Update the Count_ID field with the count for each TARGET_FID
+            for feature in layer.getFeatures():
+                target_fid = feature['TARGET_FID']
+                count = target_fid_counts.get(target_fid, 0)
+                layer.changeAttributeValue(feature.id(), layer.fields().indexOf('Count_ID'), count)
+
+            layer.commitChanges()
+            QgsMessageLog.logMessage(f"Successfully added Count_ID column for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
+            return True
+
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error in add_count_id_column: {e}", "EnelAssist", level=Qgis.Critical)
+            return False
+
 
     # Add 'Join_Count' column
     def add_join_count_column(self, layer):

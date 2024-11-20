@@ -72,7 +72,7 @@ class RamuriNoduriParser(BaseParser):
                 'rule': 'str',
                 'required': True
             },
-            'id_': {
+            'TARGET_FID': {
                 'rule': 'str',
                 'required': True
             },
@@ -133,7 +133,7 @@ class RamuriNoduriParser(BaseParser):
                 CIR=feature['CIR'] if feature['CIR'] not in [None, 'NULL', 'nan'] else None,
                 cod_materi = cod_material,
                 Pozare=feature['Material'][0] if feature['Material'] not in [None, 'NULL', 'nan'] else None,
-                ID=feature['id_'],
+                ID=feature['TARGET_FID'],
                 lungime=round(feature['lungime_']),
                 denumire=feature['Denumire'] if feature['Denumire'] not in [None, 'NULL', 'nan'] else None,
                 stare_cone=feature['StareConex'] if feature['StareConex'] not in [None, 'NULL', 'nan'] else None,

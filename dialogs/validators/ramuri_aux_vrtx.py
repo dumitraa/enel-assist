@@ -74,7 +74,7 @@ class RamuriAuxVrtxParser(BaseParser):
             ramura_aux = RamuriAuxVrtx(
                 internal_id=feature.id(),
                 FID=feature.id(),
-                TARGET_FID=feature['id_'] if feature['id_'] not in [None, 'NULL', 'nan'] else None,
+                TARGET_FID=feature['TARGET_FID'] if feature['TARGET_FID'] not in [None, 'NULL', 'nan'] else None,
                 START_X=feature['START_X'] if feature['START_X'] not in [None, 'NULL', 'nan'] else None,
                 START_Y=feature['START_Y'] if feature['START_Y'] not in [None, 'NULL', 'nan'] else None,
                 END_X=feature['END_X'] if feature['END_X'] not in [None, 'NULL', 'nan'] else None,
