@@ -39,7 +39,7 @@ STEP 5 - Merge Vector Layers - ReteaJT > folder - RAMURI
         >   processing.run("qgis:mergevectorlayers", {
                 'LAYERS': [layer1, layer2, layer3],  # list of layers to merge
                 'CRS': 'EPSG:3844',  # Optional CRS
-                'OUTPUT': '/path/to/output/layer.gpkg'
+                'OUTPUT': '/path/to/output/layer.shp'
             })
 
 STEP 6. Join Attributes by Location - RAMURI > NODURI - ONE TO MANY > RAMURI_NODURI
@@ -112,21 +112,20 @@ class PreProcessDialog(QDialog):
 
         # Define the steps
         self.steps = [
-            "1. Adauga coloana 'FID' pentru toate straturile",
-            "2. Calculeaza X, Y la toate geometriile",
-            "3. Calculeaza START_X, START_Y, END_X, END_Y pentru ReteaJT",
-            "4. Adauga coloane 'lungime' si 'id' pentru ReteaJT",
-            "5. Adauga coloana 'id' pentru NOD_NRSTR",
-            "6. Uneste straturile pentru NODURI",
-            "7. Uneste straturile pentru RAMURI",
-            "8. Join Attributes by Location - RAMURI_NODURI",
-            "9. Join Attributes by Location - LEG_NODURI",
-            "10. Join Attributes by Location - LEG_NRSTR",
-            "11. Uneste straturile pentru NODURI_AUX_VRTX",
-            "12. Join Attributes by Location - RAMURI_AUX_VRTX",
-            "13. Adauga coloana 'SEI' pentru RAMURI_AUX_VRTX",
-            "14. Adauga coloana 'Join_Count' pentru toate join-urile",
-            "15. Sorteaza 'LEG_NRSTR' si 'LEG_NODURI' dupa 'ID'"
+            "1. Calculeaza X, Y la toate geometriile",
+            "2. Calculeaza START_X, START_Y, END_X, END_Y pentru ReteaJT",
+            "3. Adauga coloane 'lungime' si 'id' pentru ReteaJT",
+            "4. Adauga coloana 'id' pentru NOD_NRSTR",
+            "5. Uneste straturile pentru NODURI",
+            "6. Uneste straturile pentru RAMURI",
+            "7. Join Attributes by Location - RAMURI_NODURI",
+            "8. Join Attributes by Location - LEG_NODURI",
+            "9. Join Attributes by Location - LEG_NRSTR",
+            "10. Uneste straturile pentru NODURI_AUX_VRTX",
+            "11. Join Attributes by Location - RAMURI_AUX_VRTX",
+            "12. Adauga coloana 'SEI' pentru RAMURI_AUX_VRTX",
+            "13. Adauga coloana 'Join_Count' pentru toate join-urile",
+            "14. Sorteaza 'LEG_NRSTR' si 'LEG_NODURI' dupa 'ID'"
         ]
 
         # Add steps to the list, making them non-interactive
@@ -177,7 +176,7 @@ class PreProcessDialog(QDialog):
         
         # Update progress bar
         layers_valid = [layer for layer in self.layers.values() if layer is not None]
-        total_steps = len(self.steps) - 2 + (len(layers_valid) * 2) - 2 # Total number of processing steps
+        total_steps = len(self.steps) - 2 + len(layers_valid) - 2 # Total number of processing steps
         self.progress_bar.setMaximum(total_steps)
         step = 0
         self.base_dir = QFileDialog.getExistingDirectory(None, "Select Folder")
@@ -191,15 +190,7 @@ class PreProcessDialog(QDialog):
         self.run_button.setEnabled(False)
         self.close_button.setEnabled(False)
         
-        # 1. Add 'FID' columns to all layers
-        for layer in self.layers.values():
-            if layer is not None:
-                success = self.add_fid_column(layer.name())
-                step += 1
-                self.progress_bar.setValue(step)
-        self.update_step(0, success)  # Mark step 1 as done
-        
-        # 2. Calculate X. Y for layers
+        #NOTE 2. Calculate X. Y for layers
         for layer in self.layers.values():
             # QgsMessageLog.logMessage(f"Calculating geometry for layer: {layer.name()}", "EnelAssist", level=Qgis.Info)
             if layer is not None and layer.name() in ["ReteaJT", "NOD_NRSTR"]:
@@ -215,79 +206,83 @@ class PreProcessDialog(QDialog):
                 step += 1
                 self.progress_bar.setValue(step)
         
-        self.update_step(1, success)  # Mark step 1 as done
+        self.update_step(0, success)  # Mark step 1 as done
             
             
-        # 3. Calculate START_X, START_Y, END_X, END_Y for ReteaJT
+        #NOTE 3. Calculate START_X, START_Y, END_X, END_Y for ReteaJT
         success = self.calculate_geometry(self.layers["ReteaJT"], None, None, None, None, 'START_X', 'START_Y', 'END_X', 'END_Y')
         # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
         step += 1
         self.progress_bar.setValue(step)
-        self.update_step(2, success)  # Mark step 2 as done
+        self.update_step(1, success)  # Mark step 2 as done
 
-        # 4. Add 'lungime' and 'id' columns to ReteaJT and calculate geometry length
+        #NOTE 4. Add 'lungime' and 'id' columns to ReteaJT and calculate geometry length
         success = self.add_length_and_id(self.layers['ReteaJT'], 'lungime_', 'id_')
-        self.update_step(3, success)  # Mark step 3 as done
+        self.update_step(2, success)  # Mark step 3 as done
         # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
         step += 1
         self.progress_bar.setValue(step)
 
-        # 5. Manage NOD_NRSTR columns
+        #NOTE 5. Manage NOD_NRSTR columns
         success = self.modify_nod_nrstr(self.layers['NOD_NRSTR'])
-        self.update_step(4, success)  # Mark step 4 as done
+        self.update_step(3, success)  # Mark step 4 as done
         # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
         step += 1
         self.progress_bar.setValue(step)
 
-        # 5. Merge layers for NODURI
+        #NOTE 5. Merge layers for NODURI
         success = self.merge_layers([self.layers['1InceputLinie'], self.layers['2Cutii'], self.layers['3Stalpi'], self.layers['4BMPnou']], 'NODURI')
-        self.update_step(5, success)  # Mark step 5 as done
+        self.update_step(4, success)  # Mark step 5 as done
         step += 1
         self.progress_bar.setValue(step)
 
-        # 6. Merge layers for RAMURI
+        #NOTE 6. Merge layers for RAMURI
         success = self.merge_layers([self.layers['ReteaJT'], self.layers['Coloana']], 'RAMURI')
-        self.update_step(6, success)  # Mark step 6 as done
+        self.update_step(5, success)  # Mark step 6 as done
         step += 1
         self.progress_bar.setValue(step)
 
-        # 7. Join Attributes by Location - RAMURI_NODURI
+        #NOTE 7. Join Attributes by Location - RAMURI_NODURI
         success = self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI'], 'RAMURI_NODURI', 'One-to-Many')
-        self.update_step(7, success)  # Mark step 7 as done
+        self.update_step(6, success)  # Mark step 7 as done
         step += 1
         self.progress_bar.setValue(step)
 
-        # 8. Join Attributes by Location - LEG_NODURI
+        #NOTE 8. Join Attributes by Location - LEG_NODURI
         success = self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['4BMPnou'], 'LEG_NODURI', 'One-to-One')
-        self.update_step(8, success)  # Mark step 8 as done
+        self.update_step(7, success)  # Mark step 8 as done
         step += 1
         self.progress_bar.setValue(step)
         
-        # 9. Join Attributes by Location - LEG_NRSTR
+        #NOTE 9. Join Attributes by Location - LEG_NRSTR
         success = self.join_attributes_by_location(self.layers['NOD_NRSTR'], self.layers['Numar_Postal'], 'LEG_NRSTR', 'One-to-One')
-        self.update_step(9, success)  # Mark step 9 as done
+        self.update_step(8, success)  # Mark step 9 as done
         step += 1
         self.progress_bar.setValue(step)
 
-        # 10. Merge layers for NODURI_AUX_VRTX
+        #NOTE 10. Merge layers for NODURI_AUX_VRTX
         success = self.merge_layers([self.layers['1InceputLinie'], self.layers['2Cutii'], self.layers['3Stalpi'], self.layers['4BMPnou'], self.layers['5AUXILIAR'], self.layers['6pct_vrtx']], 'NODURI_AUX_VRTX')
-        self.update_step(10, success)  # Mark step 10 as done
+        # if success:
+        #     self.add_fid_column(self.layers['NODURI_AUX_VRTX'].name())
+        self.update_step(9, success)  # Mark step 10 as done
         step += 1
         self.progress_bar.setValue(step)
 
-        # 11. Join Attributes by Location - RAMURI_AUX_VRTX
+        #NOTE 11. Join Attributes by Location - RAMURI_AUX_VRTX
         success = self.join_attributes_by_location(self.layers['RAMURI'], self.layers['NODURI_AUX_VRTX'], 'RAMURI_AUX_VRTX', 'One-to-Many')
-        self.update_step(11, success)  # Mark step 11 as done
+        # if success:
+        #     self.add_fid_column(self.layers['RAMURI_AUX_VRTX'].name())
+        self.update_step(10, success)  # Mark step 11 as done
         step += 1
         self.progress_bar.setValue(step)
 
-        # 12. Add 'SEI' column with conditional values
+        #NOTE 12. Add 'SEI' column with conditional values
         success = self.add_sei_column(self.layers['RAMURI_AUX_VRTX'].name())
-        self.update_step(12, success)  # Mark step 12 as done
+        self.update_step(11, success)  # Mark step 12 as done
         step += 1
         self.progress_bar.setValue(step)
 
-        # 13. Add 'Join_Count' column for all joins with value '1'
+        #NOTE 13. Add 'Join_Count' column for all joins with value '1'
         success1 = self.add_join_count_column(self.layers['RAMURI_NODURI'].name())
         success2 = self.add_join_count_column(self.layers['LEG_NODURI'].name())
         success3 = self.add_join_count_column(self.layers['LEG_NRSTR'].name())
@@ -298,12 +293,12 @@ class PreProcessDialog(QDialog):
             success = None
         else:
             success = False
-        self.update_step(13, success)  # Mark step 13 as done
+        self.update_step(12, success)  # Mark step 13 as done
         step += 1
         # QgsMessageLog.logMessage(f"Steps completed: {step}", "EnelAssist", level=Qgis.Info)
         self.progress_bar.setValue(step)
         
-        # 14. Sort "LEG_NRSTR" and "LEG_NODURI" by "ID"
+        #NOTE 14. Sort "LEG_NRSTR" and "LEG_NODURI" by "ID"
         success1 = self.sort_layer_by_field(self.layers['LEG_NRSTR'], 'ID')
         success2 = self.sort_layer_by_field(self.layers['LEG_NODURI'], 'ID')
         
@@ -313,7 +308,7 @@ class PreProcessDialog(QDialog):
             success = None
         else:
             success = False
-        self.update_step(14, success)  # Mark step 14 as done
+        self.update_step(13, success)  # Mark step 14 as done
         step += 1
         self.progress_bar.setValue(step)
         
@@ -584,7 +579,7 @@ class PreProcessDialog(QDialog):
             
             # QgsMessageLog.logMessage(f"Merging layers: {layer_list}", "EnelAssist", level=Qgis.Info)
             valid_layers = [layer for layer in layer_list if layer is not None]
-            output = os.path.join(self.base_dir, f"{folder}.gpkg")
+            output = os.path.join(self.base_dir, f"{folder}.shp")
             if output and not QgsVectorLayer(output, '', 'ogr').isValid():
                 processing.run("qgis:mergevectorlayers", {
                     'LAYERS': valid_layers, 
@@ -623,7 +618,7 @@ class PreProcessDialog(QDialog):
                     'INPUT': input_file,
                     'JOIN': join_file,
                     'PREDICATE': [0],  # intersects
-                    'JOIN_FIELDS': [],
+                    'JOIN_FIELDS': [''],
                     'METHOD': 0 if method == 'One-to-Many' else 1,  # One-to-Many or One-to-One
                     'DISCARD_NONMATCHING': False,
                     'OUTPUT': output
@@ -635,32 +630,6 @@ class PreProcessDialog(QDialog):
         except Exception as e:
             QgsMessageLog.logMessage(f"Error in join_attributes_by_location: {e}", "EnelAssist", level=Qgis.Critical)
             return False
-        
-    # Add 'FID' columns to layer
-    def add_fid_column(self, layer):
-        if not layer:
-            QgsMessageLog.logMessage(f"No valid layers found for adding FID column in layer_name: {layer}", "EnelAssist", level=Qgis.Warning)
-            return False
-        
-        try:
-            layer = QgsProject.instance().mapLayersByName(layer)[0]
-            if layer.fields().indexOf('FID') != -1:
-                QgsMessageLog.logMessage(f"FID column already exists for layer: {layer}", "EnelAssist", level=Qgis.Info)
-                return True
-            
-            layer.startEditing()
-            layer.dataProvider().addAttributes([QgsField('FID', QVariant.Int)])
-            layer.updateFields()
-            
-            for feature in layer.getFeatures():
-                layer.changeAttributeValue(feature.id(), layer.fields().indexOf('FID'), feature.id())
-                
-            layer.commitChanges()
-            return True
-        except Exception as e:
-            QgsMessageLog.logMessage(f"Error in add_fid_column: {e}", "EnelAssist", level=Qgis.Critical)
-            return False
-
 
     # Add 'NR.CRT' column and calculate values (start with one, increment by one)
     def add_nr_crt_column(self, layer):
