@@ -34,9 +34,12 @@ import os
 # Initialize Qt resources from file resources.py
 from .resources import *
 # Import the code for the dialog
-from .dialogs.pre_process_dialog import PreProcessDialog
+from .dialogs.process_dialog import ProcessDialog
 from .dialogs.validate_dialog import ValidateDialog
 from .dialogs.generate_dialog import GenerateExcelDialog
+from .dialogs.preprocess_dialog import PreProcessDialog
+from .dialogs.preverify_dialog import PreVerifyDialog
+from .dialogs.preprocess_pct_vrtx_dialog import PreProcessPctVrtxDialog
 import os.path
 
 
@@ -189,11 +192,35 @@ class EnelAssist:
         self.toolbar = self.iface.addToolBar('EnelAssist')
         self.toolbar.setObjectName('EnelAssist')
         self.toolbar.setMovable(True)
-
+        
         self.add_action(
             "Pre-Process",
             text=self.tr(u'Pre-Process'),
             callback=self.pre_process,
+            parent=self.iface.mainWindow(),
+            icon_path= str(self.plugin_path('icons/preprocess.png'))
+            )
+        
+        self.add_action(
+            "Pre-verify",
+            text=self.tr(u'Pre-verify'),
+            callback=self.pre_verify,
+            parent=self.iface.mainWindow(),
+            icon_path= str(self.plugin_path('icons/verify.png'))
+        )
+        
+        self.add_action(
+            "Pre-process pct_vrtx",
+            text=self.tr(u'Pre-process pct_vrtx'),
+            callback=self.pre_process_pct_vrtx,
+            parent=self.iface.mainWindow(),
+            icon_path= str(self.plugin_path('icons/vertex.png'))
+        )
+
+        self.add_action(
+            "Process",
+            text=self.tr(u'Process'),
+            callback=self.process,
             parent=self.iface.mainWindow(),
             icon_path= str(self.plugin_path('icons/process.png'))
             )
@@ -225,8 +252,41 @@ class EnelAssist:
             self.toolbar.removeAction(action)
         del self.toolbar
         
-        
     def pre_process(self):
+        """
+        - Merge Vector Layers - InceputLinie, Cutii, Stalpi, BMPnou > NODURI
+        - Extract Vertices - ReteaJT > VERTICES
+        - Difference - VERTICES, NODURI > DIFFERENCE
+        - Add Geometry Attributes - DIFFERENCE > pct_vrtx
+        - Delete rows without coordinates (point_x, point_y)
+        """
+        QgsMessageLog.logMessage("Entering pre-process...", "EnelAssist", level=Qgis.Info)
+        PreProcessDialog().exec_()
+        
+    def pre_verify(self):
+        """
+        - Automated layer retrieval
+        - Merge Vector Layers - InceputLinie, Cutii, Stalpi, BMPnou > NODURI
+        - Merge Vector Layers - RAMURI
+        - Join Attributes by Location - RAMURI_NODURI
+        - Adauga coloana Count_ID - RAMURI_NODURI
+        - Rename layers without the numbers
+        """
+        QgsMessageLog.logMessage("Entering pre-verify...", "EnelAssist", level=Qgis.Info)
+        PreVerifyDialog().exec_()
+        
+    def pre_process_pct_vrtx(self):
+        """
+        - Merge Vector Layers - InceputLinie, Cutii, Stalpi, BMPnou > NODURI
+        - Snap geometries to layer - ReteaJT, NODURI // Tolerance - 1, Behavior - End points to end points only > ReteaJT (overwrite)
+        - Merge Vector Layers - BMPnou, Numar_Postal > LEG_NODURI
+        - Snap geometries to layer - NOD_NRSTR, LEG_NODURI // Tolerance - 1, Behavior - End points to end points only > NOD_NRSTR (overwrite)
+        - Snap geometries to layer - AUXILIAR, ReteaJT // Tolerance - 1, Behavior - Prefer alignment nodes, don't insert new vertices > AUXILIAR (overwrite)
+        """
+        QgsMessageLog.logMessage("Entering pre-process pct_vrtx...", "EnelAssist", level=Qgis.Info)
+        PreProcessPctVrtxDialog().exec_()
+        
+    def process(self):
         """
         - Calculate geometry for all - X, Y coord line start and end >> field calculator - x(start_point($geometry)) etc.
         - ReteaJT - Add 'lungime', 'id' columns - double
@@ -246,7 +306,7 @@ class EnelAssist:
         - for each Join Attributes by Location - add Join_Count column with all values '1'
         """
         QgsMessageLog.logMessage("Entering preprocess...", "EnelAssist", level=Qgis.Info)
-        PreProcessDialog().exec_()
+        ProcessDialog().exec_()
     
     
     def validate(self):
