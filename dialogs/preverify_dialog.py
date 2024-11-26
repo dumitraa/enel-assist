@@ -16,23 +16,19 @@ import os
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QProgressBar, QPushButton, QFileDialog, QLabel, QListWidget, QListWidgetItem, QMessageBox
 from qgis.core import QgsProject, QgsMessageLog, Qgis # type: ignore
 from qgis.PyQt.QtCore import Qt # type: ignore
-import processing # type: ignore
 
 class PreVerifyDialog(QDialog):
-    
     def __init__(self):
         super().__init__()
         self.processor = ProcessDialog()
         
-        self.setWindowTitle("Preprocess Data")
+        self.setWindowTitle("Pre-verify Data")
 
         # Set fixed dimensions for the window
         self.setFixedSize(400, 250)
 
         self.layout = QVBoxLayout()
-
-        self.update_layer_names()  # Rename layers to match the expected names
-        
+                
         # Label
         self.progress_text = QLabel("Steps to do:")
         self.layout.addWidget(self.progress_text)
@@ -100,6 +96,8 @@ class PreVerifyDialog(QDialog):
                 self.close()
             return
         
+        self.update_layer_names()  # Rename layers to match the expected names
+
         # Automated layer retrieval
         self.layers = self.processor.get_layers()
         if not self.layers:
@@ -180,7 +178,7 @@ class PreVerifyDialog(QDialog):
         for layer_name in layer_names:
             layer = next((l for l in qgis_layers if l.name() == layer_name), None)
             layers[layer_name] = layer  # Add the layer if found, else None
-            QgsMessageLog.logMessage(f"Layer found: key: {layer_name}, value: {layer}", "EnelAssist", level=Qgis.Info)
+            # QgsMessageLog.logMessage(f"Layer found: key: {layer_name}, value: {layer}", "EnelAssist", level=Qgis.Info)
 
         # QgsMessageLog.logMessage(f"Layers found with IDs: {layers}", "EnelAssist", level=Qgis.Info)
         return layers

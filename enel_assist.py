@@ -37,7 +37,7 @@ from .resources import *
 from .dialogs.process_dialog import ProcessDialog
 from .dialogs.validate_dialog import ValidateDialog
 from .dialogs.generate_dialog import GenerateExcelDialog
-from .dialogs.preprocess_dialog import PreProcessDialog
+from .dialogs.preprocess_snap_dialog import PreProcessSnapDialog
 from .dialogs.preverify_dialog import PreVerifyDialog
 from .dialogs.preprocess_pct_vrtx_dialog import PreProcessPctVrtxDialog
 import os.path
@@ -194,11 +194,11 @@ class EnelAssist:
         self.toolbar.setMovable(True)
         
         self.add_action(
-            "Pre-Process",
-            text=self.tr(u'Pre-Process'),
-            callback=self.pre_process,
+            "Pre-Process Snap",
+            text=self.tr(u'Pre-Process Snap'),
+            callback=self.pre_process_snap,
             parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/preprocess.png'))
+            icon_path= str(self.plugin_path('icons/snap.png'))
             )
         
         self.add_action(
@@ -210,8 +210,8 @@ class EnelAssist:
         )
         
         self.add_action(
-            "Pre-process pct_vrtx",
-            text=self.tr(u'Pre-process pct_vrtx'),
+            "Pre-Process pct_vrtx",
+            text=self.tr(u'Pre-Process pct_vrtx'),
             callback=self.pre_process_pct_vrtx,
             parent=self.iface.mainWindow(),
             icon_path= str(self.plugin_path('icons/vertex.png'))
@@ -225,13 +225,13 @@ class EnelAssist:
             icon_path= str(self.plugin_path('icons/process.png'))
             )
         
-        self.add_action(
-            "Validate",
-            text=self.tr(u'Validate'),
-            callback=self.validate,
-            parent=self.iface.mainWindow(),
-            icon_path= str(self.plugin_path('icons/validate.png'))
-        )
+        # self.add_action(
+        #     "Validate",
+        #     text=self.tr(u'Validate'),
+        #     callback=self.validate,
+        #     parent=self.iface.mainWindow(),
+        #     icon_path= str(self.plugin_path('icons/validate.png'))
+        # )
         
         self.add_action(
             "Generate Excel",
@@ -252,7 +252,7 @@ class EnelAssist:
             self.toolbar.removeAction(action)
         del self.toolbar
         
-    def pre_process(self):
+    def pre_process_snap(self):
         """
         - Merge Vector Layers - InceputLinie, Cutii, Stalpi, BMPnou > NODURI
         - Extract Vertices - ReteaJT > VERTICES
@@ -261,7 +261,7 @@ class EnelAssist:
         - Delete rows without coordinates (point_x, point_y)
         """
         QgsMessageLog.logMessage("Entering pre-process...", "EnelAssist", level=Qgis.Info)
-        PreProcessDialog().exec_()
+        PreProcessSnapDialog().exec_()
         
     def pre_verify(self):
         """

@@ -92,8 +92,6 @@ class ProcessDialog(QDialog):
         self.setFixedSize(500, 350)  # Example dimensions: 600x400 pixels
 
         self.layout = QVBoxLayout()
-
-        self.update_layer_names()  # Rename layers to match the expected names
         
         # Label
         self.progress_text = QLabel("Steps to do:")
@@ -170,6 +168,9 @@ class ProcessDialog(QDialog):
             if msg_box.exec_() == QMessageBox.Ok:
                 self.close()
             return
+        
+        self.update_layer_names()  # Rename layers to match the expected names
+
         
         # Automated layer retrieval
         self.layers = self.get_layers()
@@ -346,7 +347,7 @@ class ProcessDialog(QDialog):
         '''
         QgsMessageLog.logMessage("Retrieving layers from the QGIS project...", "EnelAssist", level=Qgis.Info)
         layers = {}
-        layer_names = ['1InceputLinie', '2Cutii', '3Stalpi', '4BMPnou', 'ReteaJT', 'NOD_NRSTR', '5AUXILIAR', '6pct_vrtx', "Numar_Postal", "NODURI", "RAMURI", "RAMURI_NODURI", "LEG_NODURI", "NODURI_AUX_VRTX", "RAMURI_AUX_VRTX", "LEG_NRSTR", "Coloana"]
+        layer_names = ['1InceputLinie', '2Cutii', '3Stalpi', '4BMPnou', 'ReteaJT', 'NOD_NRSTR', '5AUXILIAR', '6pct_vrtx', "Numar_Postal", "NODURI", "RAMURI", "RAMURI_NODURI", "LEG_NODURI", "NODURI_AUX_VRTX", "RAMURI_AUX_VRTX", "LEG_NRSTR", "Coloana", "DIFFERENCE", "VERTICES"]
 
         # Get all layers in the current QGIS project (keep the layer objects)
         qgis_layers = QgsProject.instance().mapLayers().values()
@@ -356,7 +357,7 @@ class ProcessDialog(QDialog):
         for layer_name in layer_names:
             layer = next((l for l in qgis_layers if l.name() == layer_name), None)
             layers[layer_name] = layer  # Add the layer if found, else None
-            QgsMessageLog.logMessage(f"Layer found: key: {layer_name}, value: {layer}", "EnelAssist", level=Qgis.Info)
+            # QgsMessageLog.logMessage(f"Layer found: key: {layer_name}, value: {layer}", "EnelAssist", level=Qgis.Info)
 
         # QgsMessageLog.logMessage(f"Layers found with IDs: {layers}", "EnelAssist", level=Qgis.Info)
         return layers
@@ -578,13 +579,6 @@ class ProcessDialog(QDialog):
         
         # QgsMessageLog.logMessage(f"Entered merge_layers with layer_list: {layer_list} and folder: {folder}", "EnelAssist", level=Qgis.Info)
         try:
-            # Populating input_layers
-            # QgsMessageLog.logMessage(f"Input layers are: {layer_list}", "EnelAssist", level=Qgis.Info)
-            if not layer_list:
-                QgsMessageLog.logMessage(f"No valid layers found for merging in layer_list: {layer_list}", "EnelAssist", level=Qgis.Warning)
-                return False
-            
-            # QgsMessageLog.logMessage(f"Merging layers: {layer_list}", "EnelAssist", level=Qgis.Info)
             valid_layers = [layer for layer in layer_list if layer is not None]
             output = os.path.join(base_dir, f"{folder}.shp")
             if output and not QgsVectorLayer(output, '', 'ogr').isValid():

@@ -2,26 +2,27 @@
 LAYERS NEEDED = ['InceputLinie', 'Cutii', 'Stalpi', 'BMPnou', 'ReteaJT', 'NOD_NRSTR', 'AUXILIAR', 'pct_vrtx', "Numar_Postal"]
 
 STEP 1. Merge Vector Layers - InceputLinie, Cutii, Stalpi, BMPnou > NODURI
-> merge from process_dialog.py
-STEP 2. Extract Vertices - ReteaJT > VERTICES
-STEP 3. Difference - VERTICES, NODURI > DIFFERENCE
-STEP 4. Add Geometry Attributes - DIFFERENCE > pct_vrtx
-STEP 5. Delete rows without coordinates (xcoord, ycoord)
+STEP 2. Snap geometries to layer - ReteaJT, NODURI // Tolerance - 1, Behavior - End points to end points only > ReteaJT (overwrite)
+STEP 3. Merge Vector Layers - BMPnou, Numar_Postal > LEG_NODURI
+STEP 4. Snap geometries to layer - NOD_NRSTR, LEG_NODURI // Tolerance - 1, Behavior - End points to end points only > NOD_NRSTR (overwrite)
+STEP 5. Snap geometries to layer - AUXILIAR, ReteaJT // Tolerance - 1, Behavior - Prefer alignment nodes, don't insert new vertices > AUXILIAR (overwrite)
 
 '''
+
 from .process_dialog import ProcessDialog
 import os
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QProgressBar, QPushButton, QFileDialog, QLabel, QListWidget, QListWidgetItem, QApplication, QMessageBox
-from qgis.core import QgsProject, QgsMessageLog, Qgis, edit # type: ignore
-import processing # type: ignore
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QProgressBar, QPushButton, QFileDialog, QLabel, QListWidget, QListWidgetItem, QMessageBox
+from qgis.core import QgsProject, QgsMessageLog, Qgis, QgsVectorLayer, QgsCoordinateReferenceSystem # type: ignore
 from qgis.PyQt.QtCore import Qt # type: ignore
+from qgis.analysis import QgsGeometrySnapper # type: ignore
+import processing # type: ignore
 
-class PreProcessPctVrtxDialog(QDialog):
+class PreProcessSnapDialog(QDialog):
     def __init__(self):
         super().__init__()
         self.processor = ProcessDialog()
         
-        self.setWindowTitle("Pre-process Data - pct_vrtx")
+        self.setWindowTitle("Pre-process Data - SNAP")
 
         # Set fixed dimensions for the window
         self.setFixedSize(400, 250)
@@ -47,11 +48,11 @@ class PreProcessPctVrtxDialog(QDialog):
 
         # Define the steps
         self.steps = [
-            "1. Merge Vector Layers - VERTICES",
-            "2. Extract Vertices - ReteaJT",
-            "3. Difference - VERTICES, NODURI > DIFFERENCE",
-            "4. Add Geometry Attributes - pct_vrtx",
-            "5. Sterge randurile fara coordonate",
+            "1. Merge Vector Layers - NODURI",
+            "2. Snap geometries to layer - ReteaJT",
+            "3. Merge Vector Layers - LEG_NODURI",
+            "4. Snap geometries to layer - NOD_NRSTR",
+            "5. Snap geometries to layer - AUXILIAR"
         ]
 
         # Add steps to the list, making them non-interactive
@@ -112,48 +113,46 @@ class PreProcessPctVrtxDialog(QDialog):
         self.run_button.setEnabled(False)
         self.close_button.setEnabled(False)
         
-        # NOTE 1. Merge Vector Layers - InceputLinie, Cutii, Stalpi, BMPnou > NODURI
-        success = self.processor.merge_layers([self.layers['AUXILIAR'], self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou']], "NODURI", self.base_dir, self.layers)
+        # NOTE 1. Merge Vector Layers - NODURI
+        success = self.processor.merge_layers([self.layers['InceputLinie'], self.layers['Cutii'], self.layers['Stalpi'], self.layers['BMPnou']], 'NODURI', self.base_dir, self.layers)
         step += 1
         self.progress_bar.setValue(step)
         self.processor.update_step(self.steps_list, 0, success)
         
-        # NOTE 2. Extract Vertices - ReteaJT > VERTICES
-        success = self.extract_vertices(self.layers['ReteaJT'], "VERTICES")
+        # NOTE 2. Snap geometries to layer - ReteaJT
+        success = self.snap_geometries(self.layers['ReteaJT'], self.layers['NODURI'], 6) # 6 = End points to end points only
         step += 1
         self.progress_bar.setValue(step)
         self.processor.update_step(self.steps_list, 1, success)
         
-        # NOTE 3. Difference - VERTICES, NODURI > DIFFERENCE
-        success = self.difference_layers(self.layers['VERTICES'], self.layers['NODURI'], "DIFFERENCE")
+        # NOTE 3. Merge Vector Layers - LEG_NODURI
+        success = self.processor.merge_layers([self.layers['BMPnou'], self.layers['Numar_Postal']], 'LEG_NODURI', self.base_dir, self.layers)
         step += 1
         self.progress_bar.setValue(step)
         self.processor.update_step(self.steps_list, 2, success)
         
-        # NOTE 4. Add Geometry Attributes - DIFFERENCE > pct_vrtx
-        success = self.add_geometry_attributes(self.layers['DIFFERENCE'], "pct_vrtx")
+        # NOTE 4. Snap geometries to layer - NOD_NRSTR
+        success = self.snap_geometries(self.layers['NOD_NRSTR'], self.layers['LEG_NODURI'], 6) # 6 = End points to end points only
         step += 1
         self.progress_bar.setValue(step)
         self.processor.update_step(self.steps_list, 3, success)
         
-        # NOTE 5. Delete rows without coordinates (point_x, point_y)
-        success = self.delete_rows_without_coordinates(self.layers['pct_vrtx'])
+        # NOTE 5. Snap geometries to layer - AUXILIAR
+        success = self.snap_geometries(self.layers['AUXILIAR'], self.layers['ReteaJT'], 2) # 2 = Prefer alignment nodes, don't insert new vertices
         step += 1
         self.progress_bar.setValue(step)
         self.processor.update_step(self.steps_list, 4, success)
         
-        self.delete_layer([self.layers['VERTICES'], self.layers['DIFFERENCE']])
-        
         self.close_button.setEnabled(True)
         
-        
+        # Retrieve layers by name from the QGIS project
     def get_layers(self):
         '''
         Get layers by name from the QGIS project and add them to self.layers
         '''
         QgsMessageLog.logMessage("Retrieving layers from the QGIS project...", "EnelAssist", level=Qgis.Info)
         layers = {}
-        layer_names = ['InceputLinie', 'Cutii', 'Stalpi', 'BMPnou', 'ReteaJT', 'NOD_NRSTR', 'AUXILIAR', 'pct_vrtx', "Numar_Postal", "NODURI", "RAMURI", "RAMURI_NODURI", "LEG_NODURI", "DIFFERENCE", "VERTICES", "LEG_NRSTR", "Coloana"]
+        layer_names = ['InceputLinie', 'Cutii', 'Stalpi', 'BMPnou', 'ReteaJT', 'NOD_NRSTR', 'AUXILIAR', 'pct_vrtx', "Numar_Postal", "NODURI", "RAMURI", "RAMURI_NODURI", "LEG_NODURI", "NODURI_AUX_VRTX", "RAMURI_AUX_VRTX", "LEG_NRSTR", "Coloana"]
 
         # Get all layers in the current QGIS project (keep the layer objects)
         qgis_layers = QgsProject.instance().mapLayers().values()
@@ -168,86 +167,28 @@ class PreProcessPctVrtxDialog(QDialog):
         # QgsMessageLog.logMessage(f"Layers found with IDs: {layers}", "EnelAssist", level=Qgis.Info)
         return layers
         
-    def extract_vertices(self, input_layer, output):
-        if not input_layer:
+
+    def snap_geometries(self, input_layer, reference_layer, behavior):
+        if not input_layer or not reference_layer:
             return False
 
         try:
-            output = os.path.join(self.base_dir, f"{output}.shp")
-            processing.run("native:extractvertices", {
+            result = processing.run("native:snapgeometries", {
                 'INPUT': input_layer,
-                'OUTPUT': output
+                'REFERENCE_LAYER': reference_layer,
+                'TOLERANCE': 1.0,
+                'BEHAVIOR': behavior,
+                'OUTPUT': 'memory:'
             })
-            self.processor.add_layer_to_project(output)
-            self.layers.update(self.get_layers())
-            return True
-        except Exception as e:
-            QgsMessageLog.logMessage(f"Error in extract_vertices: {e}", "EnelAssist", level=Qgis.Critical)
-            return False
 
-    def difference_layers(self, input_layer, overlay_layer, output):
-        if not input_layer or not overlay_layer:
-            QgsMessageLog.logMessage("No input or overlay layer provided.", "EnelAssist", level=Qgis.Critical)
-            return False
-
-        try:
-            output = os.path.join(self.base_dir, f"{output}.shp")
-            processing.run("native:difference", {
-                'INPUT': input_layer,
-                'OVERLAY': overlay_layer,
-                'OUTPUT': output
-            })
-            self.processor.add_layer_to_project(output)
-            self.layers.update(self.get_layers())
-            
-            return True
-        except Exception as e:
-            QgsMessageLog.logMessage(f"Error in calc_difference: {e}", "EnelAssist", level=Qgis.Critical)
-            return False
-
-    def add_geometry_attributes(self, input_layer, output):
-        if not input_layer:
-            QgsMessageLog.logMessage("No input layer provided.", "EnelAssist", level=Qgis.Critical)
-            return False
-
-
-        try:
-            output = os.path.join(self.base_dir, f"{output}.shp")
-            processing.run("qgis:exportaddgeometrycolumns", {  # Corrected the algorithm ID
-                'INPUT': input_layer,
-                'CALC_METHOD': 0,  # Planimetric calculation
-                'OUTPUT': output
-            })
-            self.processor.add_layer_to_project(output)
-            self.layers.update(self.get_layers())
+            # Update input layer with the result
+            input_layer.dataProvider().deleteFeatures([f.id() for f in input_layer.getFeatures()])
+            input_layer.dataProvider().addFeatures(result['OUTPUT'].getFeatures())
+            input_layer.updateFields()
+            input_layer.updateExtents()
             return True
 
         except Exception as e:
-            QgsMessageLog.logMessage(f"Error in add_geometry_attributes: {e}", "EnelAssist", level=Qgis.Critical)
+            QgsMessageLog.logMessage(f"Error in snap_geometries: {e}", "EnelAssist", level=Qgis.Critical)
             return False
 
-    def delete_rows_without_coordinates(self, layer):
-        if not layer:
-            return False
-
-        try:
-            with edit(layer):
-                for feature in layer.getFeatures():
-                    if feature['xcoord'] in [None, "NULL", 'nan'] and feature['ycoord'] in [None, "NULL", 'nan']:
-                        QgsMessageLog.logMessage(f"Deleting feature: {feature.id()}", "EnelAssist", level=Qgis.Info)
-                        layer.deleteFeature(feature.id())
-            layer.updateExtents()
-            layer.commitChanges()
-            return True
-        except Exception as e:
-            QgsMessageLog.logMessage(f"Error in delete_rows: {e}", "EnelAssist", level=Qgis.Critical)
-            return False
-        
-        
-    def delete_layer(self, layer_list):
-        # remove layer from project and os
-        for layer in layer_list:
-            QgsProject.instance().removeMapLayer(layer)
-        return True
-            
-        
